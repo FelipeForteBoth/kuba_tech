@@ -30,7 +30,7 @@ CREATE TABLE service_orders (
     FOREIGN KEY (device_serial) REFERENCES devices(serial_number) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-ALTER TABLE service_orders ADD COLUMN problem_description TEXT NOT NULL AFTER service_ordersservice_orderstechnician;
+ALTER TABLE service_orders ADD COLUMN problem_description TEXT NOT NULL AFTER technician;
 
 SELECT * FROM customers;
 SELECT * FROM devices;
