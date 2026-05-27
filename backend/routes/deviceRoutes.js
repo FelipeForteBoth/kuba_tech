@@ -1,43 +1,17 @@
-const express = require('express');
-const router = express.Router();
-const db = require('../config/database');
+const express = require('express')
+const cors = require('cors')
 
-router.post('/', async (req, res) => {
-    const { serial_number, customer_cpf, type } = req.body;
-    try {
-        await db.query('INSERT INTO devices (serial_number, customer_cpf, type) VALUES (?, ?, ?)', [serial_number, customer_cpf, type]);
-        res.status(201).json({ message: 'Dispositivo cadastrado!' });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
+require('dotenv').config()
 
-router.get('/', async (req, res) => {
-    try {
-        const [rows] = await db.query('SELECT * FROM devices');
-        res.json(rows);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
+const app = express()
 
-router.put('/:serial', async (req, res) => {
-    const { customer_cpf, type } = req.body;
-    try {
-        await db.query('UPDATE devices SET customer_cpf=?, type=? WHERE serial_number=?', [customer_cpf, type, req.params.serial]);
-        res.json({ message: 'Dispositivo atualizado!' });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
+app.use(cors())
+app.use(express.json())
 
-router.delete('/:serial', async (req, res) => {
-    try {
-        await db.query('DELETE FROM devices WHERE serial_number=?', [req.params.serial]);
-        res.json({ message: 'Dispositivo deletado!' });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
+const authRoutes = require('./routes/authRoutes')
 
-module.exports = router;
+app.use('/api/auth', authRoutes)
+
+app.listen(process.env.PORT, () => {
+    console.log(`Servidor rodando na porta ${process.env.PORT}`)
+})

@@ -1,13 +1,27 @@
+-- 1. Criação e seleção do banco de dados
 CREATE DATABASE IF NOT EXISTS kuba_tech;
 USE kuba_tech;
 
+-- 2. Tabela de Usuários (Autenticação do sistema)
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nome VARCHAR(100) NOT NULL,
+    cpf VARCHAR(14) UNIQUE NOT NULL,
+    login VARCHAR(50) UNIQUE NOT NULL,
+    senha VARCHAR(255) NOT NULL,
+    tipo ENUM('cliente', 'admin') NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 3. Tabela de Clientes (Dados de contato)
 CREATE TABLE IF NOT EXISTS customers (
     cpf VARCHAR(14) PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
+    nome VARCHAR(100) NOT NULL,
     phone VARCHAR(15) NOT NULL,
     email VARCHAR(100) NOT NULL
 );
 
+-- 4. Tabela de Dispositivos
 CREATE TABLE IF NOT EXISTS devices (
     serial_number VARCHAR(100) PRIMARY KEY,
     customer_cpf VARCHAR(14) NOT NULL,
@@ -15,18 +29,23 @@ CREATE TABLE IF NOT EXISTS devices (
     FOREIGN KEY (customer_cpf) REFERENCES customers(cpf) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
+-- 5. Tabela de Ordens de Serviço
 CREATE TABLE IF NOT EXISTS service_orders (
     id INT AUTO_INCREMENT PRIMARY KEY,
     customer_cpf VARCHAR(14) NOT NULL,
     device_serial VARCHAR(100) NOT NULL,
     technician VARCHAR(100) NOT NULL,
-    problem_description TEXT NOT NULL,
     opening_date DATE NOT NULL,
     status ENUM('A Realizar', 'Em Andamento', 'Finalizada') DEFAULT 'A Realizar',
     FOREIGN KEY (customer_cpf) REFERENCES customers(cpf) ON DELETE CASCADE ON UPDATE CASCADE,
     FOREIGN KEY (device_serial) REFERENCES devices(serial_number) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
+-- 6. Correção do ALTER TABLE (Adiciona a descrição do problema após o técnico)
+ALTER TABLE service_orders ADD COLUMN problem_description TEXT NOT NULL AFTER technician;
+
+-- 7. Consultas para verificação
+SELECT * FROM users;
 SELECT * FROM customers;
 SELECT * FROM devices;
 SELECT * FROM service_orders;
