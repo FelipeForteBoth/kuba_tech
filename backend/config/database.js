@@ -1,13 +1,20 @@
-const mysql = require('mysql2');
+const mysql = require('mysql2')
+require('dotenv').config()
 
-const pool = mysql.createPool({
-    host: 'localhost',
-    user: 'root', // Altere para seu usuário
-    password: '12092204070806072023', // Altere para sua senha
-    database: 'kuba_tech',
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0
-});
+const connection = mysql.createConnection({
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME
+})
 
-module.exports = pool.promise();
+connection.connect((err) => {
+    if(err){
+        console.log('Erro banco:', err)
+        return
+    }
+
+    console.log('Banco conectado')
+})
+
+module.exports = connection
