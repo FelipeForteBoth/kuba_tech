@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Clientes — Kuba Tech</title>
+  <title>Dispositivos — Kuba Tech</title>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="/frontend/css/style.css">
 </head>
 <body>
 
@@ -31,18 +31,18 @@
 
     <div class="page-header">
       <div>
-        <h1 class="page-title">Clientes</h1>
+        <h1 class="page-title">Dispositivos</h1>
         <p class="page-sub" id="sub-count">Carregando...</p>
       </div>
       <button class="btn btn-primary" id="btn-new">
-        <i class="fas fa-plus"></i> Novo Cliente
+        <i class="fas fa-plus"></i> Novo Dispositivo
       </button>
     </div>
 
     <div class="toolbar">
       <div class="search-wrap">
         <i class="fas fa-search"></i>
-        <input type="text" class="search-input" id="search-input" placeholder="Buscar por nome, CPF, telefone ou e-mail...">
+        <input type="text" class="search-input" id="search-input" placeholder="Buscar por serial, CPF ou tipo...">
       </div>
       <button class="btn-sort" id="btn-sort">
         <i class="fas fa-sort-alpha-down"></i> A–Z
@@ -54,10 +54,9 @@
         <table>
           <thead>
             <tr>
-              <th>Nome</th>
-              <th>CPF</th>
-              <th>Telefone</th>
-              <th>E-mail</th>
+              <th>Serial / IMEI</th>
+              <th>Tipo</th>
+              <th>CPF do Proprietário</th>
               <th></th>
             </tr>
           </thead>
@@ -74,7 +73,7 @@
 <div id="drawer" class="drawer">
   <div class="drawer-hd">
     <div>
-      <div class="drawer-title" id="drawer-title">Cliente</div>
+      <div class="drawer-title" id="drawer-title">Dispositivo</div>
       <div class="drawer-mode" id="drawer-mode">Visualização</div>
     </div>
     <button class="drawer-x" id="drawer-x">×</button>
@@ -83,7 +82,7 @@
   <div class="drawer-ft"   id="drawer-ft"></div>
 </div>
 
-<script src="js/shared.js"></script>
-<script src="js/clientes.js"></script>
+<script src="/frontend/js/shared.js"></script>
+<script src="/frontend/js/dispositivos.js"></script>
 </body>
 </html>

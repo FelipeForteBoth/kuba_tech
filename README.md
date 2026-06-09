@@ -9,16 +9,16 @@ backend/config/DataBase.txt
 ```
 
 ### 2. Configurar a senha do banco
-Edite `backend/config/database.js` e coloque seus dados:
+Edite `backend/.env` e coloque seus dados:
 ```js
-user: 'root',
-password: 'SUA_SENHA_AQUI',
+DB_USER=usuario
+DB_PASSWORD=senha
 ```
 
 ### 3. Instalar dependências (só na primeira vez)
 ```bash
 cd backend
-npm install
+npm install -y cors mysql2 express bcryptjs jsonwebtoken dotenv
 ```
 
 ### 4. Iniciar o servidor
