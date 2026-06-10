@@ -1,5 +1,7 @@
--- ✅ Script SQL corrigido para o MySQL
--- Execute este script no MySQL Workbench ou terminal mysql
+Caso já tenha algo escrito no Banco de Dados, antes de executar o código principal, execute esse:
+
+DROP DATABASE kuba_tech;
+
 
 CREATE DATABASE IF NOT EXISTS kuba_tech;
 USE kuba_tech;

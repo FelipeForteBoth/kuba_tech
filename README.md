@@ -8,6 +8,15 @@ Abra o MySQL Workbench (ou terminal mysql) e execute o conteúdo do arquivo:
 backend/config/DataBase.txt
 ```
 
+
+### 2. Fazer o clone do GitHub
+Dentro da pasta que você quer que fique o projeto:
+Clique com botão direito, em seguida mostrar mais e "Open with Git Bash here".
+Dentro do terminal git, digite "git clone link do repositório" e clique Enter
+Agora digite "Cd Nome_do_repositório" e clique Enter
+Por mim, digite "Code ." e clique Enter.
+
+
 ### 2. Configurar a senha do banco
 Edite `backend/.env` e coloque seus dados:
 ```js
