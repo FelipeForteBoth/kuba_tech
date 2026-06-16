@@ -1,107 +1,83 @@
-const express = require('express')
-const router = express.Router()
-const bcrypt = require('bcryptjs')
-const jwt = require('jsonwebtoken')
-const db = require('../config/database')
-require('dotenv').config()
+const express = require('express');
+const router  = express.Router();
+const jwt     = require('jsonwebtoken');
+const db      = require('../config/database');
+require('dotenv').config();
 
-// CADASTRO CLIENTE
-router.post('/register-client', async (req, res) => {
+// Credenciais fixas do administrador
+const ADMIN_LOGIN = 'admin';
+const ADMIN_SENHA = 'admin';
 
-    const { nome, cpf, login } = req.body
+// Helper: deixa só os dígitos do CPF
+function onlyDigits(v) {
+    return String(v || '').replace(/\D/g, '');
+}
 
-    const senhaBase = cpf.slice(0,5) + cpf.slice(-1)
+// Regra de negócio: senha do cliente = 5 primeiros dígitos do CPF + último dígito
+function senhaDoCliente(cpfDigits) {
+    if (cpfDigits.length < 6) return null;
+    return cpfDigits.slice(0, 5) + cpfDigits.slice(-1);
+}
 
-    const senhaHash = await bcrypt.hash(senhaBase, 10)
+// POST /api/auth/login
+router.post('/login', async (req, res) => {
+    try {
+        const { login, senha } = req.body || {};
 
-    const sql = `
-        INSERT INTO users(nome, cpf, login, senha, tipo)
-        VALUES (?, ?, ?, ?, 'cliente')
-    `
-
-    db.query(sql, [nome, cpf, login, senhaHash], (err, result) => {
-
-        if(err){
-            return res.status(500).json(err)
+        if (!login || !senha) {
+            return res.status(400).json({ error: 'Informe login e senha.' });
         }
 
-        res.json({
-            message: 'Cliente cadastrado',
-            senhaInicial: senhaBase
-        })
-    })
-})
-
-// CADASTRO ADMIN
-router.post('/register-admin', async (req, res) => {
-
-    const { nome, cpf, login, senha } = req.body
-
-    const senhaHash = await bcrypt.hash(senha, 10)
-
-    const sql = `
-        INSERT INTO users(nome, cpf, login, senha, tipo)
-        VALUES (?, ?, ?, ?, 'admin')
-    `
-
-    db.query(sql, [nome, cpf, login, senhaHash], (err, result) => {
-
-        if(err){
-            return res.status(500).json(err)
+        // 1) Admin (login/senha fixos)
+        if (login === ADMIN_LOGIN && senha === ADMIN_SENHA) {
+            const token = jwt.sign(
+                { tipo: 'admin', nome: 'Administrador' },
+                process.env.JWT_SECRET || 'kuba_secret_2026',
+                { expiresIn: '1d' }
+            );
+            return res.json({ token, tipo: 'admin', nome: 'Administrador' });
         }
 
-        res.json({
-            message: 'Administrador cadastrado'
-        })
-    })
-})
-
-// LOGIN
-router.post('/login', (req, res) => {
-
-    const { login, senha } = req.body
-
-    const sql = `
-        SELECT * FROM users
-        WHERE login = ?
-    `
-
-    db.query(sql, [login], async (err, result) => {
-
-        if(err){
-            return res.status(500).json(err)
+        // 2) Cliente: login = CPF (só dígitos), senha = cpf[0..5] + cpf[-1]
+        const cpfDigits = onlyDigits(login);
+        if (cpfDigits.length !== 11) {
+            return res.status(401).json({ error: 'Login ou senha inválidos.' });
         }
 
-        if(result.length === 0){
-            return res.status(401).json({
-                error: 'Usuário não encontrado'
-            })
+        // Procura o cliente comparando só os dígitos do CPF gravado
+        const [rows] = await db.query(
+            `SELECT cpf, name FROM customers
+              WHERE REPLACE(REPLACE(cpf, '.', ''), '-', '') = ?`,
+            [cpfDigits]
+        );
+
+        if (!rows.length) {
+            return res.status(401).json({ error: 'Login ou senha inválidos.' });
         }
 
-        const user = result[0]
+        const cliente = rows[0];
+        const senhaEsperada = senhaDoCliente(cpfDigits);
 
-/*         const senhaValida = await bcrypt.compare(senha, user.senha)
+        if (senha !== senhaEsperada) {
+            return res.status(401).json({ error: 'Login ou senha inválidos.' });
+        }
 
-        if(!senhaValida){
-            return res.status(401).json({
-                error: 'Senha inválida'
-            })
-        } */
+        const token = jwt.sign(
+            { tipo: 'cliente', cpf: cliente.cpf, nome: cliente.name },
+            process.env.JWT_SECRET || 'kuba_secret_2026',
+            { expiresIn: '1d' }
+        );
 
-        const token = jwt.sign({
-            id: user.id,
-            tipo: user.tipo,
-            nome: user.nome
-        }, process.env.JWT_SECRET, {
-            expiresIn: '1d'
-        })
-
-        res.json({
+        return res.json({
             token,
-            tipo: user.tipo,
-            nome: user.nome
-        })
-    })
-})
+            tipo: 'cliente',
+            nome: cliente.name,
+            cpf:  cliente.cpf
+        });
+    } catch (err) {
+        console.error('Erro no login:', err);
+        return res.status(500).json({ error: 'Erro no servidor.' });
+    }
+});
 
-module.exports = router
+module.exports = router;

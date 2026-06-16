@@ -1,7 +1,9 @@
 // ── STATE ──
 let orders = [];
-let sortDir = -1; // default: mais recentes primeiro (desc por id)
+let sortDir = -1; // mais recentes primeiro
 let editingId = null;
+
+const isCliente = () => localStorage.getItem('tipoUsuario') === 'cliente';
 
 // ── HELPERS ──
 function fmtDate(d) {
@@ -14,15 +16,10 @@ function badgeStatus(s) {
   return `<span class="badge badge-done">${s}</span>`;
 }
 
-function lastEntry(desc) {
-  const parts = desc.split('---');
-  return parts[parts.length - 1].trim();
-}
-
 // ── FETCH ──
 async function fetchOS() {
   try {
-    const res = await fetch(`${API_URL}/service-orders?t=${Date.now()}`);
+    const res = await authFetch(`${API_URL}/service-orders?t=${Date.now()}`);
     orders = await res.json();
     render(orders);
     const tot = orders.length;
@@ -75,7 +72,7 @@ function applyFilter() {
   render(data);
 }
 
-// ── VIEW MODE ──
+// ── VIEW ──
 function viewOS(id) {
   const o = orders.find(x => x.id === id);
   if (!o) return;
@@ -97,19 +94,25 @@ function viewOS(id) {
     <div class="d-section"><i class="fas fa-history"></i> Histórico / Defeito</div>
     <div class="pre-box">${o.problem_description}</div>`;
 
-  document.getElementById('drawer-ft').innerHTML = `
-    <button class="btn btn-del btn-sm" onclick="deleteOS(${o.id})">
-      <i class="fas fa-trash"></i> Excluir
-    </button>
-    <button class="btn btn-ghost btn-sm" onclick="editOS(${o.id})">
-      <i class="fas fa-edit"></i> Editar / Atualizar
-    </button>`;
+  // Cliente não vê os botões de editar / excluir
+  if (isCliente()) {
+    document.getElementById('drawer-ft').innerHTML = '';
+  } else {
+    document.getElementById('drawer-ft').innerHTML = `
+      <button class="btn btn-del btn-sm" onclick="deleteOS(${o.id})">
+        <i class="fas fa-trash"></i> Excluir
+      </button>
+      <button class="btn btn-ghost btn-sm" onclick="editOS(${o.id})">
+        <i class="fas fa-edit"></i> Editar / Atualizar
+      </button>`;
+  }
 
   openDrawer();
 }
 
-// ── NEW MODE ──
+// ── NEW (admin) ──
 function newOS() {
+  if (isCliente()) return;
   editingId = null;
   document.getElementById('drawer-title').textContent = 'Nova Ordem de Serviço';
   document.getElementById('drawer-mode').textContent  = 'Cadastro';
@@ -122,8 +125,9 @@ function newOS() {
   openDrawer();
 }
 
-// ── EDIT MODE ──
+// ── EDIT (admin) ──
 function editOS(id) {
+  if (isCliente()) return;
   const o = orders.find(x => x.id === id);
   if (!o) return;
   editingId = id;
@@ -233,7 +237,7 @@ async function saveOS() {
     : `${API_URL}/service-orders`;
 
   try {
-    const res = await fetch(url, {
+    const res = await authFetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -251,9 +255,10 @@ async function saveOS() {
 
 // ── DELETE ──
 async function deleteOS(id) {
+  if (isCliente()) return;
   if (!confirm('Excluir esta Ordem de Serviço?')) return;
   try {
-    await fetch(`${API_URL}/service-orders/${id}`, { method: 'DELETE' });
+    await authFetch(`${API_URL}/service-orders/${id}`, { method: 'DELETE' });
     toast('O.S. excluída.');
     closeDrawer();
     fetchOS();
@@ -262,9 +267,13 @@ async function deleteOS(id) {
 
 // ── INIT ──
 document.addEventListener('DOMContentLoaded', () => {
+  // Esconde o botão "Nova O.S." se o usuário for cliente
+  const btnNew = document.getElementById('btn-new');
+  if (isCliente() && btnNew) btnNew.style.display = 'none';
+
   fetchOS();
 
-  document.getElementById('btn-new').addEventListener('click', newOS);
+  if (btnNew) btnNew.addEventListener('click', newOS);
   document.getElementById('search-input').addEventListener('input', applyFilter);
   document.getElementById('filter-status').addEventListener('change', applyFilter);
 

@@ -1,8 +1,146 @@
-const API_URL = 'http://localhost:3000/api';
+const API_URL = '/api';
+
+// ── AUTH HELPERS ──
+function authHeaders(extra = {}) {
+  const token = localStorage.getItem('token');
+  return { ...extra, ...(token ? { Authorization: 'Bearer ' + token } : {}) };
+}
+
+// Wrapper de fetch que envia o token e redireciona ao login se expirar
+async function authFetch(url, opts = {}) {
+  const headers = authHeaders(opts.headers || {});
+  const res = await fetch(url, { ...opts, headers });
+  if (res.status === 401) {
+    localStorage.clear();
+    window.location.href = '/html/login.html';
+    throw new Error('Não autenticado');
+  }
+  return res;
+}
+
+function logout() {
+  localStorage.clear();
+  window.location.href = '/html/login.html';
+}
+
+// Páginas permitidas para cada tipo de usuário.
+// 'login' é pública. As demais exigem login.
+const ADMIN_ONLY_PAGES = ['index', 'clientes', 'dispositivos'];
+
+function currentPage() {
+  return window.location.pathname.split('/').pop().replace('.html', '') || 'index';
+}
+
+// Faz o controle de acesso na entrada de cada página
+function enforceAccess() {
+  const page  = currentPage();
+  if (page === 'login') return;
+
+  const token = localStorage.getItem('token');
+  const tipo  = localStorage.getItem('tipoUsuario');
+
+  if (!token) {
+    window.location.href = '/html/login.html';
+    return;
+  }
+
+  // Cliente não pode acessar páginas administrativas
+  if (tipo === 'cliente' && ADMIN_ONLY_PAGES.includes(page)) {
+    window.location.href = '/html/os.html';
+    return;
+  }
+
+  // Esconde os itens de menu que o cliente não pode acessar
+  if (tipo === 'cliente') {
+    document.querySelectorAll('.nav-item[data-page]').forEach(el => {
+      if (ADMIN_ONLY_PAGES.includes(el.dataset.page)) el.style.display = 'none';
+    });
+  }
+}
+
+// ── TEMA (claro / escuro) ──
+const THEME_CSS = `
+:root[data-theme="dark"] {
+  --bg: #0b1220;
+  --card: #111a2e;
+  --text: #e2e8f0;
+  --text-2: #94a3b8;
+  --text-3: #64748b;
+  --border: #1f2a44;
+  --accent-light: #1e293b;
+  --sh-sm: 0 1px 3px rgba(0,0,0,.4);
+  --sh-md: 0 4px 12px rgba(0,0,0,.45);
+  --sh-lg: 0 8px 30px rgba(0,0,0,.55);
+}
+:root[data-theme="dark"] body { background: var(--bg); color: var(--text); }
+:root[data-theme="dark"] .btn-ghost { background: var(--card); color: var(--text-2); }
+:root[data-theme="dark"] table, :root[data-theme="dark"] .card, :root[data-theme="dark"] .drawer,
+:root[data-theme="dark"] .modal, :root[data-theme="dark"] input, :root[data-theme="dark"] select,
+:root[data-theme="dark"] textarea { background: var(--card); color: var(--text); border-color: var(--border); }
+:root[data-theme="dark"] tr:hover { background: rgba(255,255,255,.03) !important; }
+`;
+
+function ensureThemeStyle() {
+  if (document.getElementById('theme-style')) return;
+  const s = document.createElement('style');
+  s.id = 'theme-style';
+  s.textContent = THEME_CSS;
+  document.head.appendChild(s);
+}
+
+function applyTheme(theme) {
+  ensureThemeStyle();
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('theme', theme);
+  const btn = document.getElementById('btn-theme');
+  if (btn) {
+    const isDark = theme === 'dark';
+    btn.innerHTML = `<i class="fas fa-${isDark ? 'sun' : 'moon'}"></i>`;
+    btn.title = isDark ? 'Modo claro' : 'Modo escuro';
+  }
+}
+
+function toggleTheme() {
+  const current = localStorage.getItem('theme') || 'light';
+  applyTheme(current === 'dark' ? 'light' : 'dark');
+}
+
+function initTheme() {
+  applyTheme(localStorage.getItem('theme') || 'light');
+}
+
+
+
+
+// Adiciona botões de "Tema" e "Sair" na navbar
+function injectLogoutButton() {
+  const navbar = document.querySelector('.navbar');
+  if (!navbar || document.getElementById('btn-logout')) return;
+
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'margin-left:auto;display:flex;gap:8px;align-items:center;';
+
+  const themeBtn = document.createElement('button');
+  themeBtn.id = 'btn-theme';
+  themeBtn.style.cssText = 'background:#374151;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600;';
+  themeBtn.onclick = toggleTheme;
+
+  const btn = document.createElement('button');
+  btn.id = 'btn-logout';
+  btn.style.cssText = 'background:#ef4444;color:#fff;border:none;padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:600;';
+  btn.innerHTML = `<i class="fas fa-sign-out-alt"></i> Sair`;
+  btn.onclick = logout;
+
+  wrap.appendChild(themeBtn);
+  wrap.appendChild(btn);
+  navbar.appendChild(wrap);
+
+  initTheme();
+}
 
 // ── ACTIVE NAV ──
 function setActiveNav() {
-  const page = window.location.pathname.split('/').pop().replace('.html', '') || 'index';
+  const page = currentPage();
   document.querySelectorAll('.nav-item[data-page]').forEach(el => {
     el.classList.toggle('active', el.dataset.page === page);
   });
@@ -94,8 +232,10 @@ function toast(msg, type = 'ok') {
 
 // ── INIT ──
 document.addEventListener('DOMContentLoaded', () => {
+  enforceAccess();
   setActiveNav();
   initMenu();
   initDrawer();
   applyMasks();
+  injectLogoutButton();
 });
