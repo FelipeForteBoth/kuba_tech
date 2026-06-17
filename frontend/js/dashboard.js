@@ -6,9 +6,9 @@ let sortDir = 1;
 async function loadStats() {
   try {
     const [cRes, dRes, oRes] = await Promise.all([
-      fetch(`${API_URL}/customers?t=${Date.now()}`),
-      fetch(`${API_URL}/devices?t=${Date.now()}`),
-      fetch(`${API_URL}/service-orders?t=${Date.now()}`)
+      authFetch(`${API_URL}/customers?t=${Date.now()}`),
+      authFetch(`${API_URL}/devices?t=${Date.now()}`),
+      authFetch(`${API_URL}/service-orders?t=${Date.now()}`)
     ]);
     const [customers, devices, orders] = await Promise.all([cRes.json(), dRes.json(), oRes.json()]);
 

@@ -77,7 +77,23 @@ const THEME_CSS = `
 :root[data-theme="dark"] table, :root[data-theme="dark"] .card, :root[data-theme="dark"] .drawer,
 :root[data-theme="dark"] .modal, :root[data-theme="dark"] input, :root[data-theme="dark"] select,
 :root[data-theme="dark"] textarea { background: var(--card); color: var(--text); border-color: var(--border); }
-:root[data-theme="dark"] tr:hover { background: rgba(255,255,255,.03) !important; }
+
+/* Cabeçalho da tabela no dark: usa tom mais escuro e NÃO muda no hover */
+:root[data-theme="dark"] thead tr,
+:root[data-theme="dark"] thead tr:hover { background: #0f1830 !important; }
+:root[data-theme="dark"] thead th { color: var(--text-2) !important; border-color: var(--border) !important; }
+
+/* Hover só nas linhas do corpo */
+:root[data-theme="dark"] tbody tr:hover { background: rgba(255,255,255,.04) !important; }
+
+/* Rodapé / cabeçalho do drawer e botão de fechar */
+:root[data-theme="dark"] .drawer-ft { background: #0f1830 !important; border-top-color: var(--border) !important; }
+:root[data-theme="dark"] .drawer-hd { border-bottom-color: var(--border) !important; }
+:root[data-theme="dark"] .drawer-x { background: #1e293b !important; color: var(--text-2) !important; }
+:root[data-theme="dark"] .drawer-x:hover { background: #273449 !important; color: var(--text) !important; }
+
+/* Caixas auxiliares que tinham fundo claro fixo */
+:root[data-theme="dark"] .pre-box { background: #0f1830 !important; border-color: var(--border) !important; color: var(--text) !important; }
 `;
 
 function ensureThemeStyle() {
