@@ -6,7 +6,7 @@ let editingCpf = null;
 // ── FETCH ──
 async function fetchClientes() {
   try {
-    const res = await fetch(`${API_URL}/customers?t=${Date.now()}`);
+    const res = await authFetch(`${API_URL}/customers?t=${Date.now()}`);
     customers = await res.json();
     render(customers);
     document.getElementById('sub-count').textContent =
@@ -117,14 +117,14 @@ function formHTML(c) {
     </div>
     <div class="fg">
       <label>CPF *</label>
-      <input type="text" class="fc" id="f-cpf" data-mask="cpf" maxlength="14"
+      <input type="text" class="fc" id="f-cpf" data-mask="cpf" maxlength="40"
         value="${c ? c.cpf : ''}" ${c ? 'disabled' : ''} placeholder="000.000.000-00">
     </div>
     <div class="d-divider"></div>
     <div class="d-section"><i class="fas fa-address-book"></i> Contato</div>
     <div class="fg">
       <label>Telefone *</label>
-      <input type="text" class="fc" id="f-tel" data-mask="phone" maxlength="15"
+      <input type="text" class="fc" id="f-tel" data-mask="phone" maxlength="40"
         value="${c ? c.phone : ''}" placeholder="(00) 00000-0000">
     </div>
     <div class="fg">
@@ -136,13 +136,30 @@ function formHTML(c) {
 
 // ── SAVE ──
 async function saveCliente() {
-  const cpf   = document.getElementById('f-cpf').value.trim();
+  const cpfField = document.getElementById('f-cpf');
+  const telField = document.getElementById('f-tel');
+  if (!cpfField.disabled) cpfField.value = maskCPF(cpfField.value);
+  telField.value = maskPhone(telField.value);
+
+  const cpf   = cpfField.value.trim();
   const name  = document.getElementById('f-nome').value.trim();
-  const phone = document.getElementById('f-tel').value.trim();
+  const phone = telField.value.trim();
   const email = document.getElementById('f-email').value.trim();
 
   if (!name || (!editingCpf && !cpf) || !phone || !email) {
     toast('Preencha todos os campos.', 'err'); return;
+  }
+  if (!isValidName(name)) {
+    toast('Informe o nome completo (nome e sobrenome), apenas letras.', 'err'); return;
+  }
+  if (!editingCpf && !isValidCPF(cpf)) {
+    toast('CPF inválido. Confira os números digitados.', 'err'); return;
+  }
+  if (!isValidPhone(phone)) {
+    toast('Telefone inválido. Use o formato (00) 00000-0000.', 'err'); return;
+  }
+  if (!isValidEmail(email)) {
+    toast('E-mail inválido.', 'err'); return;
   }
 
   const method = editingCpf ? 'PUT' : 'POST';
@@ -151,7 +168,7 @@ async function saveCliente() {
     : `${API_URL}/customers`;
 
   try {
-    const res = await fetch(url, {
+    const res = await authFetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ cpf: editingCpf || cpf, name, phone, email })
@@ -171,7 +188,7 @@ async function saveCliente() {
 async function deleteCliente(cpf) {
   if (!confirm('Excluir este cliente? Os dispositivos e O.S. vinculados também serão removidos.')) return;
   try {
-    await fetch(`${API_URL}/customers/${cpf}`, { method: 'DELETE' });
+    await authFetch(`${API_URL}/customers/${cpf}`, { method: 'DELETE' });
     toast('Cliente excluído.');
     closeDrawer();
     fetchClientes();

@@ -1,6 +1,14 @@
 const express = require('express');
 const router  = express.Router();
 const db      = require('../config/database');
+const auth    = require('../middleware/auth');
+const admin   = require('../middleware/admin');
+const { isValidCPF, isValidSerial, isNonEmptyText, normalizeCPF, formatCPF } = require('../utils/validators');
+
+// Todas as rotas de dispositivos exigem login de administrador
+// (mesma regra já aplicada na tela de dispositivos do front-end).
+router.use(auth);
+router.use(admin);
 
 // Listar todos
 router.get('/', async (req, res) => {
@@ -25,9 +33,20 @@ router.get('/:serial', async (req, res) => {
 
 // Criar
 router.post('/', async (req, res) => {
-    const { serial_number, customer_cpf, type } = req.body;
-    if (!serial_number || !customer_cpf || !type)
+    const serial_number   = String(req.body.serial_number || '').trim();
+    const customerCpfInput = String(req.body.customer_cpf || '').trim();
+    const type             = String(req.body.type || '').trim();
+
+    if (!serial_number || !customerCpfInput || !type)
         return res.status(400).json({ error: 'Todos os campos são obrigatórios.' });
+    if (!isValidSerial(serial_number))
+        return res.status(400).json({ error: 'Serial/IMEI inválido. Use ao menos 4 caracteres (letras, números, "-" ou "/").' });
+    if (!isValidCPF(customerCpfInput))
+        return res.status(400).json({ error: 'CPF do cliente inválido. Informe os 11 números no formato 000.000.000-00.' });
+    if (!isNonEmptyText(type))
+        return res.status(400).json({ error: 'Informe o tipo de aparelho (ao menos 2 caracteres).' });
+
+    const customer_cpf = formatCPF(normalizeCPF(customerCpfInput));
 
     try {
         // Verifica se o cliente existe
@@ -49,10 +68,23 @@ router.post('/', async (req, res) => {
 
 // Atualizar
 router.put('/:serial', async (req, res) => {
-    const { customer_cpf, type } = req.body;
-    if (!customer_cpf || !type)
+    const customerCpfInput = String(req.body.customer_cpf || '').trim();
+    const type              = String(req.body.type || '').trim();
+
+    if (!customerCpfInput || !type)
         return res.status(400).json({ error: 'Todos os campos são obrigatórios.' });
+    if (!isValidCPF(customerCpfInput))
+        return res.status(400).json({ error: 'CPF do cliente inválido. Informe os 11 números no formato 000.000.000-00.' });
+    if (!isNonEmptyText(type))
+        return res.status(400).json({ error: 'Informe o tipo de aparelho (ao menos 2 caracteres).' });
+
+    const customer_cpf = formatCPF(normalizeCPF(customerCpfInput));
+
     try {
+        const [cliente] = await db.query('SELECT cpf FROM customers WHERE cpf = ?', [customer_cpf]);
+        if (!cliente.length)
+            return res.status(400).json({ error: 'Cliente com este CPF não encontrado.' });
+
         const [result] = await db.query(
             'UPDATE devices SET customer_cpf=?, type=? WHERE serial_number=?',
             [customer_cpf, type, req.params.serial]

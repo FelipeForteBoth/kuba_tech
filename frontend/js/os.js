@@ -166,7 +166,7 @@ function formHTML(o) {
     <div class="frow">
       <div class="fg">
         <label>CPF do Cliente *</label>
-        <input type="text" class="fc" id="f-cpf" data-mask="cpf" maxlength="14"
+        <input type="text" class="fc" id="f-cpf" data-mask="cpf" maxlength="40"
           value="${o ? o.customer_cpf : ''}" ${o ? 'disabled' : ''}
           placeholder="000.000.000-00">
       </div>
@@ -204,6 +204,10 @@ function formHTML(o) {
 
 // ── SAVE ──
 async function saveOS() {
+  if (!editingId) {
+    const cpfField = document.getElementById('f-cpf');
+    cpfField.value = maskCPF(cpfField.value);
+  }
   const cpf      = editingId
     ? orders.find(x => x.id === editingId).customer_cpf
     : document.getElementById('f-cpf').value.trim();
@@ -217,6 +221,21 @@ async function saveOS() {
 
   if (!cpf || !serial || !tecnico || !data || !novoRelato) {
     toast('Preencha todos os campos obrigatórios.', 'err'); return;
+  }
+  if (!editingId && !isValidCPF(cpf)) {
+    toast('CPF do cliente inválido. Confira os números digitados.', 'err'); return;
+  }
+  if (!editingId && !isValidSerial(serial)) {
+    toast('Serial do dispositivo inválido.', 'err'); return;
+  }
+  if (!isNonEmptyText(tecnico, 3)) {
+    toast('Informe o nome do técnico responsável (ao menos 3 caracteres).', 'err'); return;
+  }
+  if (!isValidPastOrTodayDate(data)) {
+    toast('Data de abertura inválida. Não pode ser uma data futura.', 'err'); return;
+  }
+  if (!isNonEmptyText(novoRelato, 10)) {
+    toast('Descreva o problema com pelo menos 10 caracteres.', 'err'); return;
   }
 
   let descricao = novoRelato;

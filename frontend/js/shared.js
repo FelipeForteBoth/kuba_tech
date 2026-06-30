@@ -209,7 +209,7 @@ function initDrawer() {
 
 // ── MASKS ──
 function maskCPF(v) {
-  v = v.replace(/\D/g, '');
+  v = v.replace(/\D/g, '').slice(0, 11);
   v = v.replace(/(\d{3})(\d)/, '$1.$2');
   v = v.replace(/(\d{3})(\d)/, '$1.$2');
   v = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
@@ -217,7 +217,7 @@ function maskCPF(v) {
 }
 
 function maskPhone(v) {
-  v = v.replace(/\D/g, '');
+  v = v.replace(/\D/g, '').slice(0, 11);
   v = v.replace(/^(\d{2})(\d)/g, '($1) $2');
   v = v.replace(/(\d)(\d{4})$/, '$1-$2');
   return v;
@@ -228,6 +228,80 @@ function applyMasks() {
     if (e.target.dataset.mask === 'cpf')   e.target.value = maskCPF(e.target.value);
     if (e.target.dataset.mask === 'phone') e.target.value = maskPhone(e.target.value);
   });
+}
+
+// ── VALIDAÇÕES ──
+// Mesmas regras aplicadas no backend, usadas aqui para dar feedback
+// imediato ao usuário antes de enviar a requisição.
+
+function onlyDigits(v) {
+  return String(v || '').replace(/\D/g, '');
+}
+
+function normalizeCPF(cpf) {
+  if (typeof cpf !== 'string') return null;
+  const trimmed = cpf.trim();
+  const isMasked = /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(trimmed);
+  const isDigitsOnly = /^\d{11}$/.test(trimmed);
+  if (!isMasked && !isDigitsOnly) return null;
+  return onlyDigits(trimmed);
+}
+
+function isValidCPF(cpf) {
+  const digits = normalizeCPF(cpf);
+  if (!digits) return false;
+  if (digits.length !== 11) return false;
+  return true;
+}
+
+function normalizePhone(phone) {
+  if (typeof phone !== 'string') return null;
+  const trimmed = phone.trim();
+  const isMasked = /^\(\d{2}\) \d{4,5}-\d{4}$/.test(trimmed);
+  const isDigitsOnly = /^\d{10,11}$/.test(trimmed);
+  if (!isMasked && !isDigitsOnly) return null;
+  const digits = onlyDigits(trimmed);
+  if (digits.length !== 10 && digits.length !== 11) return null;
+  return digits;
+}
+
+function isValidPhone(phone) {
+  return normalizePhone(phone) !== null;
+}
+
+function isValidEmail(email) {
+  if (typeof email !== 'string') return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim());
+}
+
+function isValidName(name) {
+  if (typeof name !== 'string') return false;
+  const v = name.trim();
+  if (v.length < 3) return false;
+  if (!/^[A-Za-zÀ-ÖØ-öø-ÿ' -]+$/.test(v)) return false;
+  return v.split(/\s+/).filter(Boolean).length >= 2;
+}
+
+function isNonEmptyText(value, minLength = 2) {
+  if (typeof value !== 'string') return false;
+  return value.trim().length >= minLength;
+}
+
+function isValidSerial(serial) {
+  if (typeof serial !== 'string') return false;
+  const v = serial.trim();
+  if (v.length < 4) return false;
+  return /^[A-Za-z0-9/-]+$/.test(v);
+}
+
+function isValidPastOrTodayDate(dateStr) {
+  if (typeof dateStr !== 'string' || !dateStr.trim()) return false;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr.trim())) return false;
+  const date = new Date(dateStr + 'T00:00:00');
+  if (Number.isNaN(date.getTime())) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return date <= today;
 }
 
 // ── TOAST ──

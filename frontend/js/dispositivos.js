@@ -6,7 +6,7 @@ let editingSerial = null;
 // ── FETCH ──
 async function fetchDispositivos() {
   try {
-    const res = await fetch(`${API_URL}/devices?t=${Date.now()}`);
+    const res = await authFetch(`${API_URL}/devices?t=${Date.now()}`);
     devices = await res.json();
     render(devices);
     document.getElementById('sub-count').textContent =
@@ -123,19 +123,31 @@ function formHTML(d) {
     <div class="d-section"><i class="fas fa-user"></i> Proprietário</div>
     <div class="fg">
       <label>CPF do Cliente *</label>
-      <input type="text" class="fc" id="f-cpf" data-mask="cpf" maxlength="14"
+      <input type="text" class="fc" id="f-cpf" data-mask="cpf" maxlength="40"
         value="${d ? d.customer_cpf : ''}" placeholder="000.000.000-00">
     </div>`;
 }
 
 // ── SAVE ──
 async function saveDispositivo() {
+  const cpfField = document.getElementById('f-cpf');
+  cpfField.value = maskCPF(cpfField.value);
+
   const serial = editingSerial || document.getElementById('f-serial').value.trim();
   const type   = document.getElementById('f-tipo').value.trim();
-  const cpf    = document.getElementById('f-cpf').value.trim();
+  const cpf    = cpfField.value.trim();
 
   if (!serial || !type || !cpf) {
     toast('Preencha todos os campos.', 'err'); return;
+  }
+  if (!editingSerial && !isValidSerial(serial)) {
+    toast('Serial/IMEI inválido. Use ao menos 4 caracteres (letras, números, "-" ou "/").', 'err'); return;
+  }
+  if (!isNonEmptyText(type)) {
+    toast('Informe o tipo de aparelho (ao menos 2 caracteres).', 'err'); return;
+  }
+  if (!isValidCPF(cpf)) {
+    toast('CPF do cliente inválido. Confira os números digitados.', 'err'); return;
   }
 
   const method = editingSerial ? 'PUT' : 'POST';
@@ -144,7 +156,7 @@ async function saveDispositivo() {
     : `${API_URL}/devices`;
 
   try {
-    const res = await fetch(url, {
+    const res = await authFetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ serial_number: serial, customer_cpf: cpf, type })
@@ -164,7 +176,7 @@ async function saveDispositivo() {
 async function deleteDispositivo(serial) {
   if (!confirm('Excluir este dispositivo?')) return;
   try {
-    await fetch(`${API_URL}/devices/${serial}`, { method: 'DELETE' });
+    await authFetch(`${API_URL}/devices/${serial}`, { method: 'DELETE' });
     toast('Dispositivo excluído.');
     closeDrawer();
     fetchDispositivos();
