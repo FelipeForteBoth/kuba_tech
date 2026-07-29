@@ -10,7 +10,11 @@ const serviceOrderRoutes = require('./routes/serviceOrderRoutes');
 
 const app = express();
 
-app.use(cors());
+// Em produção, restrinja ao domínio do seu front-end na Vercel.
+// Defina FRONTEND_URL no Render (ex: https://kuba-tech.vercel.app).
+app.use(cors({
+    origin: process.env.FRONTEND_URL || '*'
+}));
 app.use(express.json());
 
 // Servir a pasta frontend/ como estática.

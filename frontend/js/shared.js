@@ -1,4 +1,4 @@
-const API_URL = '/api';
+// API_URL agora vem de config.js (carregado antes deste arquivo)
 
 // ── AUTH HELPERS ──
 function authHeaders(extra = {}) {

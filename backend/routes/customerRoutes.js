@@ -61,7 +61,7 @@ router.post('/', async (req, res) => {
         await db.query('INSERT INTO customers (cpf, name, phone, email) VALUES (?, ?, ?, ?)', [cpf, name, phone, email]);
         res.status(201).json({ message: 'Cliente cadastrado com sucesso!' });
     } catch (error) {
-        if (error.code === 'ER_DUP_ENTRY')
+        if (error.code === '23505') // violação de chave única no Postgres
             return res.status(409).json({ error: 'CPF já cadastrado.' });
         res.status(500).json({ error: error.message });
     }

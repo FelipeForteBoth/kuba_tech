@@ -1,10 +1,10 @@
-Caso já tenha algo escrito no Banco de Dados, antes de executar o código principal, execute esse:
+-- Schema para PostgreSQL / Supabase
+-- Cole este conteúdo no "SQL Editor" do Supabase e clique em RUN.
 
-DROP DATABASE kuba_tech;
-
-
-CREATE DATABASE IF NOT EXISTS kuba_tech;
-USE kuba_tech;
+-- Caso já tenha rodado antes e queira recomeçar do zero, descomente:
+-- DROP TABLE IF EXISTS service_orders CASCADE;
+-- DROP TABLE IF EXISTS devices CASCADE;
+-- DROP TABLE IF EXISTS customers CASCADE;
 
 -- Tabela de Clientes
 CREATE TABLE IF NOT EXISTS customers (
@@ -24,13 +24,14 @@ CREATE TABLE IF NOT EXISTS devices (
 
 -- Tabela de Ordens de Serviço
 CREATE TABLE IF NOT EXISTS service_orders (
-    id                  INT AUTO_INCREMENT PRIMARY KEY,
+    id                  SERIAL PRIMARY KEY,
     customer_cpf        VARCHAR(14)  NOT NULL,
     device_serial       VARCHAR(100) NOT NULL,
     technician          VARCHAR(100) NOT NULL,
     opening_date        DATE         NOT NULL,
     problem_description TEXT         NOT NULL,
-    status              ENUM('A Realizar', 'Em Andamento', 'Finalizada') DEFAULT 'A Realizar',
+    status              VARCHAR(20)  NOT NULL DEFAULT 'A Realizar'
+                         CHECK (status IN ('A Realizar', 'Em Andamento', 'Finalizada')),
     FOREIGN KEY (customer_cpf)  REFERENCES customers(cpf)           ON DELETE CASCADE ON UPDATE CASCADE,
     FOREIGN KEY (device_serial) REFERENCES devices(serial_number)   ON DELETE CASCADE ON UPDATE CASCADE
 );

@@ -60,7 +60,7 @@ router.post('/', async (req, res) => {
         );
         res.status(201).json({ message: 'Dispositivo cadastrado!' });
     } catch (error) {
-        if (error.code === 'ER_DUP_ENTRY')
+        if (error.code === '23505') // violação de chave única no Postgres
             return res.status(409).json({ error: 'Serial já cadastrado.' });
         res.status(500).json({ error: error.message });
     }
