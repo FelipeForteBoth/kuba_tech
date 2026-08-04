@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ordens de Serviço — Kuba Tech</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+  <button id="menu-btn"><i class="fas fa-bars"></i></button>
+  <a href="dashboard.html" class="navbar-brand">
+    <div class="brand-icon"><i class="fas fa-tools"></i></div>
+    Kuba Tech
+  </a>
+</nav>
+
+<div id="wrapper">
+  <aside id="sidebar">
+    <span class="sidebar-label">Menu Principal</span>
+    <a href="dashboard.html"    class="nav-item" data-page="dashboard"><i class="fas fa-home"></i> Dashboard</a>
+    <a href="clientes.html"     class="nav-item" data-page="clientes"><i class="fas fa-users"></i> Clientes</a>
+    <a href="dispositivos.html" class="nav-item" data-page="dispositivos"><i class="fas fa-laptop-medical"></i> Dispositivos</a>
+    <a href="os.html"           class="nav-item" data-page="os"><i class="fas fa-file-invoice"></i> Ordens de Serviço</a>
+  </aside>
+
+  <main id="main-content">
+
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Ordens de Serviço</h1>
+        <p class="page-sub" id="sub-count">Carregando...</p>
+      </div>
+      <button class="btn btn-primary" id="btn-new">
+        <i class="fas fa-plus"></i> Nova O.S.
+      </button>
+    </div>
+
+    <div class="toolbar">
+      <div class="search-wrap">
+        <i class="fas fa-search"></i>
+        <input type="text" class="search-input" id="search-input"
+          placeholder="Buscar por ID, CPF, serial, técnico ou defeito...">
+      </div>
+      <select class="filter-sel" id="filter-status">
+        <option value="">Todos os status</option>
+        <option value="A Realizar">A Realizar</option>
+        <option value="Em Andamento">Em Andamento</option>
+        <option value="Finalizada">Finalizada</option>
+      </select>
+      <button class="btn-sort" id="btn-sort">
+        <i class="fas fa-sort-numeric-down"></i> Mais recentes
+      </button>
+    </div>
+
+    <div class="tcard">
+      <div class="tscroll">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Cliente (CPF)</th>
+              <th>Dispositivo</th>
+              <th>Técnico</th>
+              <th>Data</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Drawer -->
+<div id="overlay" class="overlay"></div>
+<div id="drawer" class="drawer">
+  <div class="drawer-hd">
+    <div>
+      <div class="drawer-title" id="drawer-title">O.S.</div>
+      <div class="drawer-mode" id="drawer-mode">Visualização</div>
+    </div>
+    <button class="drawer-x" id="drawer-x">×</button>
+  </div>
+  <div class="drawer-body" id="drawer-body"></div>
+  <div class="drawer-ft"   id="drawer-ft"></div>
+</div>
+
+<script src="../js/config.js"></script>
+<script src="../js/shared.js"></script>
+<script src="../js/os.js"></script>
+</body>
+</html>

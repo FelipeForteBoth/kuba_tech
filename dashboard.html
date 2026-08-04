@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — Kuba Tech</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+  <button id="menu-btn"><i class="fas fa-bars"></i></button>
+  <a href="dashboard.html" class="navbar-brand">
+    <div class="brand-icon"><i class="fas fa-tools"></i></div>
+    Kuba Tech
+  </a>
+</nav>
+
+<div id="wrapper">
+  <aside id="sidebar">
+    <span class="sidebar-label">Menu Principal</span>
+    <a href="dashboard.html"    class="nav-item" data-page="dashboard"><i class="fas fa-home"></i> Dashboard</a>
+    <a href="clientes.html"     class="nav-item" data-page="clientes"><i class="fas fa-users"></i> Clientes</a>
+    <a href="dispositivos.html" class="nav-item" data-page="dispositivos"><i class="fas fa-laptop-medical"></i> Dispositivos</a>
+    <a href="os.html"           class="nav-item" data-page="os"><i class="fas fa-file-invoice"></i> Ordens de Serviço</a>
+  </aside>
+
+  <main id="main-content">
+
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Dashboard</h1>
+        <p class="page-sub">Visão geral do sistema</p>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-icon ico-purple"><i class="fas fa-users"></i></div>
+        <div>
+          <div class="stat-val" id="s-clientes">—</div>
+          <div class="stat-lbl">Clientes</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon ico-blue"><i class="fas fa-laptop"></i></div>
+        <div>
+          <div class="stat-val" id="s-devices">—</div>
+          <div class="stat-lbl">Dispositivos</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon ico-red"><i class="fas fa-clock"></i></div>
+        <div>
+          <div class="stat-val" id="s-todo">—</div>
+          <div class="stat-lbl">A Realizar</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon ico-yellow"><i class="fas fa-spinner"></i></div>
+        <div>
+          <div class="stat-val" id="s-prog">—</div>
+          <div class="stat-lbl">Em Andamento</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon ico-green"><i class="fas fa-check-circle"></i></div>
+        <div>
+          <div class="stat-val" id="s-done">—</div>
+          <div class="stat-lbl">Finalizadas</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Search -->
+    <div class="toolbar">
+      <div class="search-wrap">
+        <i class="fas fa-search"></i>
+        <input type="text" class="search-input" id="search-input" placeholder="Buscar em todo o sistema...">
+      </div>
+      <select class="filter-sel" id="filter-cat">
+        <option value="clientes">Clientes</option>
+        <option value="dispositivos">Dispositivos</option>
+        <option value="os">Ordens de Serviço</option>
+      </select>
+      <button class="btn-sort" id="btn-sort">
+        <i class="fas fa-sort-alpha-down"></i> A–Z
+      </button>
+    </div>
+
+    <!-- Results table -->
+    <div class="tcard">
+      <div class="tscroll">
+        <table>
+          <thead id="search-thead"><tr><th colspan="5">Use a busca acima para pesquisar</th></tr></thead>
+          <tbody id="search-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Drawer -->
+<div id="overlay" class="overlay"></div>
+<div id="drawer" class="drawer">
+  <div class="drawer-hd">
+    <div>
+      <div class="drawer-title" id="drawer-title">Detalhes</div>
+      <div class="drawer-mode" id="drawer-mode"></div>
+    </div>
+    <button class="drawer-x" id="drawer-x">×</button>
+  </div>
+  <div class="drawer-body" id="drawer-body"></div>
+  <div class="drawer-ft" id="drawer-ft"></div>
+</div>
+
+<script src="../js/config.js"></script>
+<script src="../js/shared.js"></script>
+<script src="../js/dashboard.js"></script>
+</body>
+</html>
