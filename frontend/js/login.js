@@ -1,51 +1,52 @@
+// Tela de login — autenticação por e-mail e senha (JWT + bcrypt no back-end).
 async function fazerLogin() {
-    const loginInput = document.getElementById('login').value.trim();
-    const senhaInput = document.getElementById('senha').value;
-    const mensagem   = document.getElementById('mensagem');
-
+    const email = document.getElementById('login').value.trim();
+    const senha = document.getElementById('senha').value;
+    const mensagem = document.getElementById('mensagem');
+  
+    if (!email || !senha) {
+      mensagem.style.color = 'red';
+      mensagem.innerText = 'Preencha e-mail e senha.';
+      return;
+    }
+  
     mensagem.style.color = 'blue';
-    mensagem.innerText   = 'Autenticando...';
-
-    if (!loginInput || !senhaInput) {
-        mensagem.style.color = 'red';
-        mensagem.innerText   = 'Preencha todos os campos!';
-        return;
-    }
-
+    mensagem.innerText = 'Autenticando...';
+  
     try {
-        const resposta = await fetch(`${API_URL}/auth/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ login: loginInput, senha: senhaInput })
-        });
-
-        const dados = await resposta.json();
-
-        if (!resposta.ok) {
-            mensagem.style.color = 'red';
-            mensagem.innerText   = dados.error || 'Erro ao fazer login.';
-            return;
-        }
-
-        localStorage.setItem('token',       dados.token);
-        localStorage.setItem('tipoUsuario', dados.tipo);
-        localStorage.setItem('nomeUsuario', dados.nome);
-        if (dados.cpf) localStorage.setItem('cpfUsuario', dados.cpf);
-
-        mensagem.style.color = 'green';
-        mensagem.innerText   = 'Login realizado! Redirecionando...';
-
-        setTimeout(() => {
-            if (dados.tipo === 'admin') {
-                window.location.href = '/html/index.html';
-            } else {
-                // Cliente vai direto pra lista das próprias O.S.
-                window.location.href = '/html/os.html';
-            }
-        }, 600);
-    } catch (err) {
-        console.error('Erro na requisição:', err);
+      const resposta = await fetch(`${API_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: senha }),
+      });
+      const dados = await resposta.json();
+  
+      if (!resposta.ok) {
         mensagem.style.color = 'red';
-        mensagem.innerText   = 'Não foi possível conectar ao servidor.';
+        mensagem.innerText = dados.error || 'Erro ao fazer login.';
+        return;
+      }
+  
+      setSession(dados.token, dados.usuario);
+      mensagem.style.color = 'green';
+      mensagem.innerText = 'Login realizado! Redirecionando...';
+      setTimeout(() => {
+        window.location.href = homePageFor(dados.usuario.perfil);
+      }, 500);
+    } catch (err) {
+      console.error('Erro na requisição:', err);
+      mensagem.style.color = 'red';
+      mensagem.innerText = 'Não foi possível conectar ao servidor.';
     }
-}
+  }
+  
+  // Se já existe sessão válida, vai direto para a área do perfil.
+  document.addEventListener('DOMContentLoaded', () => {
+    const session = getSession();
+    if (session) window.location.href = homePageFor(session.usuario.perfil);
+  
+    document.getElementById('senha').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') fazerLogin();
+    });
+  });
+  

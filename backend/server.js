@@ -1,46 +1,55 @@
+// ─────────────────────────────────────────────────────────────
+// Kuba Tech — API REST (Node.js + Express + PostgreSQL/Supabase)
+// Arquitetura modular por domínio, multi-tenant e com RBAC.
+// Hospedagem: Render (API) + Vercel (front-end estático).
+// ─────────────────────────────────────────────────────────────
 const express = require('express');
-const cors    = require('cors');
-const path    = require('path');
+const cors = require('cors');
+const path = require('path');
 require('dotenv').config();
 
-const authRoutes         = require('./routes/authRoutes');
-const customerRoutes     = require('./routes/customerRoutes');
-const deviceRoutes       = require('./routes/deviceRoutes');
-const serviceOrderRoutes = require('./routes/serviceOrderRoutes');
+const { errorHandler } = require('./shared/http');
+const authRoutes = require('./modules/auth/auth.routes');
+const userRoutes = require('./modules/users/user.routes');
+const customerRoutes = require('./modules/customers/customer.routes');
+const deviceRoutes = require('./modules/devices/device.routes');
+const serviceOrderRoutes = require('./modules/serviceOrders/serviceOrder.routes');
+const platformRoutes = require('./modules/platform/platform.routes');
 
 const app = express();
 
-// Em produção, restrinja ao domínio do seu front-end na Vercel.
-// Defina FRONTEND_URL no Render (ex: https://kuba-tech.vercel.app).
-app.use(cors({
-    origin: process.env.FRONTEND_URL || '*'
-}));
-app.use(express.json());
+// Em produção defina FRONTEND_URL (ex.: https://kuba-tech.vercel.app).
+const allowedOrigins = (process.env.FRONTEND_URL || '*')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
-// Servir a pasta frontend/ como estática.
-// Montamos em DOIS caminhos para funcionar tanto com paths "/css/..." como
-// com paths antigos "/frontend/css/..." que já estavam nos HTMLs.
+app.use(cors({ origin: allowedOrigins.includes('*') ? '*' : allowedOrigins }));
+app.use(express.json({ limit: '1mb' }));
+
+// Verificação de saúde usada pelo Render.
+app.get('/api/health', (_req, res) => res.json({ status: 'ok', service: 'kuba-tech-api' }));
+
+// Rotas da API por domínio
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/customers', customerRoutes);
+app.use('/api/devices', deviceRoutes);
+app.use('/api/service-orders', serviceOrderRoutes);
+app.use('/api/platform', platformRoutes);
+
+app.use('/api', (_req, res) => res.status(404).json({ error: 'Recurso não encontrado.' }));
+
+// Front-end estático (útil em execução local; na Vercel ele é servido separadamente).
 const FRONT_DIR = path.join(__dirname, '..', 'frontend');
 app.use(express.static(FRONT_DIR));
 app.use('/frontend', express.static(FRONT_DIR));
+app.get('/', (_req, res) => res.sendFile(path.join(FRONT_DIR, 'html', 'login.html')));
+app.use((_req, res) => res.sendFile(path.join(FRONT_DIR, 'html', 'login.html')));
 
-// Rotas da API
-app.use('/api/auth',           authRoutes);
-app.use('/api/customers',      customerRoutes);
-app.use('/api/devices',        deviceRoutes);
-app.use('/api/service-orders', serviceOrderRoutes);
-
-// Raiz -> tela de login
-app.get('/', (req, res) => {
-    res.sendFile(path.join(FRONT_DIR, 'html', 'login.html'));
-});
-
-// Fallback: manda para login se nada bateu
-app.use((req, res) => {
-    res.sendFile(path.join(FRONT_DIR, 'html', 'login.html'));
-});
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`✅ Servidor rodando em http://localhost:${PORT}`);
-});
+app.listen(PORT, () => console.log(`✅ API Kuba Tech em http://localhost:${PORT}`));
+
+module.exports = app;

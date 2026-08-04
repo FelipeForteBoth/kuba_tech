@@ -1,31 +1,51 @@
+// ─────────────────────────────────────────────────────────────
+// Camada de acesso ao banco (PostgreSQL / Supabase).
+// Todas as consultas usam placeholders parametrizados ($1, $2...),
+// prevenindo SQL Injection conforme os requisitos de segurança.
+// ─────────────────────────────────────────────────────────────
 const { Pool } = require('pg');
 require('dotenv').config();
 
-// Supabase (Postgres) exige SSL. Usamos a connection string única
-// fornecida pelo Supabase (Project Settings > Database > Connection string > URI).
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+  max: Number(process.env.DB_POOL_MAX || 10),
 });
 
-console.log('Banco configurado (PostgreSQL / Supabase)');
+pool.on('error', (err) => console.error('Erro inesperado no pool do Postgres:', err));
 
-/**
- * Camada de compatibilidade: o projeto foi escrito para o mysql2
- * (placeholders "?" e retorno "[rows]"). Em vez de reescrever todas
- * as rotas para a sintaxe do pg ($1, $2 e {rows}), esta função traduz
- * a chamada automaticamente, para que o resto do código continue
- * funcionando sem alterações.
- */
-async function query(sql, params = []) {
-    let i = 0;
-    const pgSql = sql.replace(/\?/g, () => `$${++i}`);
-    const result = await pool.query(pgSql, params);
-
-    result.affectedRows = result.rowCount; // equivalente ao mysql2
-
-    const isSelect = /^\s*select/i.test(sql);
-    return [isSelect ? result.rows : result];
+/** Executa uma consulta parametrizada e devolve todas as linhas. */
+async function all(sql, params = []) {
+  const result = await pool.query(sql, params);
+  return result.rows;
 }
 
-module.exports = { query };
+/** Executa uma consulta parametrizada e devolve a primeira linha (ou null). */
+async function one(sql, params = []) {
+  const rows = await all(sql, params);
+  return rows[0] || null;
+}
+
+/** Executa INSERT/UPDATE/DELETE e devolve a quantidade de linhas afetadas. */
+async function run(sql, params = []) {
+  const result = await pool.query(sql, params);
+  return result.rowCount;
+}
+
+/** Executa várias operações dentro de uma transação. */
+async function transaction(callback) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await callback(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+module.exports = { pool, all, one, run, transaction };

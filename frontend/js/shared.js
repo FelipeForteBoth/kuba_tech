@@ -1,12 +1,43 @@
-// API_URL agora vem de config.js (carregado antes deste arquivo)
+// ─────────────────────────────────────────────────────────────
+// Kuba Tech — utilidades compartilhadas do front-end.
+// Sessão, controle de acesso por perfil (RBAC), tema, máscaras,
+// validações espelhadas do back-end e componentes de interface.
+// ─────────────────────────────────────────────────────────────
+// API_URL vem de config.js (carregado antes deste arquivo).
 
-// ── AUTH HELPERS ──
+// ── SESSÃO ──
+function getSession() {
+  const token = localStorage.getItem('token');
+  if (!token) return null;
+  try {
+    const usuario = JSON.parse(localStorage.getItem('usuario') || 'null');
+    return usuario ? { token, usuario } : null;
+  } catch {
+    return null;
+  }
+}
+
+function setSession(token, usuario) {
+  localStorage.setItem('token', token);
+  localStorage.setItem('usuario', JSON.stringify(usuario));
+}
+
+function currentUser() {
+  const session = getSession();
+  return session ? session.usuario : null;
+}
+
+function currentRole() {
+  const user = currentUser();
+  return user ? user.perfil : null;
+}
+
 function authHeaders(extra = {}) {
   const token = localStorage.getItem('token');
   return { ...extra, ...(token ? { Authorization: 'Bearer ' + token } : {}) };
 }
 
-// Wrapper de fetch que envia o token e redireciona ao login se expirar
+// Wrapper de fetch que envia o token e trata sessão expirada / acesso negado.
 async function authFetch(url, opts = {}) {
   const headers = authHeaders(opts.headers || {});
   const res = await fetch(url, { ...opts, headers });
@@ -14,6 +45,15 @@ async function authFetch(url, opts = {}) {
     localStorage.clear();
     window.location.href = '/html/login.html';
     throw new Error('Não autenticado');
+  }
+  if (res.status === 403) {
+    let message = 'Acesso negado para o seu perfil de usuário.';
+    try {
+      message = (await res.clone().json()).error || message;
+    } catch {
+      /* resposta sem corpo JSON */
+    }
+    if (typeof toast === 'function') toast(message, 'err');
   }
   return res;
 }
@@ -23,39 +63,82 @@ function logout() {
   window.location.href = '/html/login.html';
 }
 
-// Páginas permitidas para cada tipo de usuário.
-// 'login' é pública. As demais exigem login.
-const ADMIN_ONLY_PAGES = ['index', 'clientes', 'dispositivos'];
+// ── RBAC (espelha as regras aplicadas no back-end) ──
+const ROLE_LABELS = {
+  platform_admin: 'Administrador da Plataforma',
+  company_admin: 'Administrador da Empresa',
+  attendant: 'Atendente',
+  technician: 'Técnico',
+  manager: 'Gestor',
+};
+
+// Páginas que cada perfil pode abrir.
+const PAGE_ACCESS = {
+  platform_admin: ['plataforma'],
+  company_admin: ['index', 'clientes', 'dispositivos', 'os', 'usuarios'],
+  attendant: ['index', 'clientes', 'dispositivos', 'os'],
+  technician: ['index', 'os'],
+  manager: ['index', 'clientes', 'dispositivos', 'os'],
+};
+
+// Perfis autorizados a criar/editar em cada módulo.
+const WRITE_ACCESS = {
+  customers: ['company_admin', 'attendant'],
+  devices: ['company_admin', 'attendant'],
+  orders: ['company_admin', 'attendant'],
+  orderStatus: ['company_admin', 'attendant', 'technician'],
+  users: ['company_admin'],
+  tenants: ['platform_admin'],
+};
+
+const DELETE_ACCESS = ['company_admin'];
+
+function can(action) {
+  const role = currentRole();
+  return Boolean(role && (WRITE_ACCESS[action] || []).includes(role));
+}
+
+function canDelete() {
+  return DELETE_ACCESS.includes(currentRole());
+}
+
+function homePageFor(role) {
+  if (role === 'platform_admin') return '/html/plataforma.html';
+  if (role === 'technician') return '/html/os.html';
+  return '/html/index.html';
+}
 
 function currentPage() {
   return window.location.pathname.split('/').pop().replace('.html', '') || 'index';
 }
 
-// Faz o controle de acesso na entrada de cada página
+// Controle de acesso executado na entrada de cada página.
 function enforceAccess() {
-  const page  = currentPage();
-  if (page === 'login') return;
+  const page = currentPage();
+  if (page === 'login' || page === 'cadastro') return;
 
-  const token = localStorage.getItem('token');
-  const tipo  = localStorage.getItem('tipoUsuario');
-
-  if (!token) {
+  const session = getSession();
+  if (!session) {
     window.location.href = '/html/login.html';
     return;
   }
 
-  // Cliente não pode acessar páginas administrativas
-  if (tipo === 'cliente' && ADMIN_ONLY_PAGES.includes(page)) {
-    window.location.href = '/html/os.html';
+  const role = session.usuario.perfil;
+  const allowed = PAGE_ACCESS[role] || [];
+  if (!allowed.includes(page)) {
+    window.location.href = homePageFor(role);
     return;
   }
 
-  // Esconde os itens de menu que o cliente não pode acessar
-  if (tipo === 'cliente') {
-    document.querySelectorAll('.nav-item[data-page]').forEach(el => {
-      if (ADMIN_ONLY_PAGES.includes(el.dataset.page)) el.style.display = 'none';
-    });
-  }
+  // Oculta do menu tudo que o perfil não pode acessar.
+  document.querySelectorAll('.nav-item[data-page]').forEach((el) => {
+    el.style.display = allowed.includes(el.dataset.page) ? '' : 'none';
+  });
+
+  // Oculta ações de escrita para perfis somente leitura (ex.: Gestor).
+  document.querySelectorAll('[data-requires]').forEach((el) => {
+    if (!can(el.dataset.requires)) el.style.display = 'none';
+  });
 }
 
 // ── TEMA (claro / escuro) ──
@@ -125,16 +208,23 @@ function initTheme() {
   applyTheme(localStorage.getItem('theme') || 'light');
 }
 
-
-
-
-// Adiciona botões de "Tema" e "Sair" na navbar
+// ── BARRA SUPERIOR: identificação do usuário, tema e sair ──
 function injectLogoutButton() {
   const navbar = document.querySelector('.navbar');
   if (!navbar || document.getElementById('btn-logout')) return;
 
+  const user = currentUser();
   const wrap = document.createElement('div');
-  wrap.style.cssText = 'margin-left:auto;display:flex;gap:8px;align-items:center;';
+  wrap.style.cssText = 'margin-left:auto;display:flex;gap:10px;align-items:center;';
+
+  if (user) {
+    const info = document.createElement('div');
+    info.id = 'user-info';
+    info.style.cssText = 'text-align:right;line-height:1.2;color:#fff;font-size:13px;';
+    info.innerHTML = `<div style="font-weight:700;">${user.nome}</div>
+      <div style="opacity:.8;font-size:11px;">${ROLE_LABELS[user.perfil] || ''}${user.empresa ? ' · ' + user.empresa : ''}</div>`;
+    wrap.appendChild(info);
+  }
 
   const themeBtn = document.createElement('button');
   themeBtn.id = 'btn-theme';
@@ -157,7 +247,7 @@ function injectLogoutButton() {
 // ── ACTIVE NAV ──
 function setActiveNav() {
   const page = currentPage();
-  document.querySelectorAll('.nav-item[data-page]').forEach(el => {
+  document.querySelectorAll('.nav-item[data-page]').forEach((el) => {
     el.classList.toggle('active', el.dataset.page === page);
   });
 }
@@ -178,7 +268,7 @@ function initMenu() {
     }
   });
 
-  document.addEventListener('click', e => {
+  document.addEventListener('click', (e) => {
     if (window.innerWidth <= 768 && sidebar.classList.contains('mob-open') &&
         !sidebar.contains(e.target) && !btn.contains(e.target)) {
       sidebar.classList.remove('mob-open');
@@ -204,15 +294,24 @@ function initDrawer() {
   const closeBtn = document.getElementById('drawer-x');
   if (overlay) overlay.addEventListener('click', closeDrawer);
   if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
 }
 
-// ── MASKS ──
+// ── MÁSCARAS ──
 function maskCPF(v) {
   v = v.replace(/\D/g, '').slice(0, 11);
   v = v.replace(/(\d{3})(\d)/, '$1.$2');
   v = v.replace(/(\d{3})(\d)/, '$1.$2');
   v = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+  return v;
+}
+
+function maskCNPJ(v) {
+  v = v.replace(/\D/g, '').slice(0, 14);
+  v = v.replace(/^(\d{2})(\d)/, '$1.$2');
+  v = v.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
+  v = v.replace(/\.(\d{3})(\d)/, '.$1/$2');
+  v = v.replace(/(\d{4})(\d)/, '$1-$2');
   return v;
 }
 
@@ -224,14 +323,15 @@ function maskPhone(v) {
 }
 
 function applyMasks() {
-  document.addEventListener('input', e => {
-    if (e.target.dataset.mask === 'cpf')   e.target.value = maskCPF(e.target.value);
+  document.addEventListener('input', (e) => {
+    if (e.target.dataset.mask === 'cpf') e.target.value = maskCPF(e.target.value);
+    if (e.target.dataset.mask === 'cnpj') e.target.value = maskCNPJ(e.target.value);
     if (e.target.dataset.mask === 'phone') e.target.value = maskPhone(e.target.value);
   });
 }
 
 // ── VALIDAÇÕES ──
-// Mesmas regras aplicadas no backend, usadas aqui para dar feedback
+// Mesmas regras aplicadas no back-end, usadas aqui para dar feedback
 // imediato ao usuário antes de enviar a requisição.
 
 function onlyDigits(v) {
@@ -249,9 +349,11 @@ function normalizeCPF(cpf) {
 
 function isValidCPF(cpf) {
   const digits = normalizeCPF(cpf);
-  if (!digits) return false;
-  if (digits.length !== 11) return false;
-  return true;
+  return Boolean(digits) && digits.length === 11;
+}
+
+function isValidCNPJ(cnpj) {
+  return onlyDigits(cnpj).length === 14;
 }
 
 function normalizePhone(phone) {
@@ -282,6 +384,12 @@ function isValidName(name) {
   return v.split(/\s+/).filter(Boolean).length >= 2;
 }
 
+function isValidPassword(password) {
+  if (typeof password !== 'string') return false;
+  if (password.length < 8 || password.length > 72) return false;
+  return /[A-Za-zÀ-ÿ]/.test(password) && /\d/.test(password);
+}
+
 function isNonEmptyText(value, minLength = 2) {
   if (typeof value !== 'string') return false;
   return value.trim().length >= minLength;
@@ -304,6 +412,12 @@ function isValidPastOrTodayDate(dateStr) {
   return date <= today;
 }
 
+// Evita injeção de HTML ao renderizar dados vindos do banco.
+function esc(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 // ── TOAST ──
 function toast(msg, type = 'ok') {
   const old = document.getElementById('toast');
@@ -311,7 +425,7 @@ function toast(msg, type = 'ok') {
   const t = document.createElement('div');
   t.id = 'toast';
   t.style.background = type === 'ok' ? '#22c55e' : '#ef4444';
-  t.innerHTML = `<i class="fas fa-${type === 'ok' ? 'check-circle' : 'times-circle'}"></i> ${msg}`;
+  t.innerHTML = `<i class="fas fa-${type === 'ok' ? 'check-circle' : 'times-circle'}"></i> ${esc(msg)}`;
   document.body.appendChild(t);
   setTimeout(() => {
     t.style.transition = 'opacity .3s';
