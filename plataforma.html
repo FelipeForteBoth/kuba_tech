@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plataforma — Kuba Tech</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+  <button id="menu-btn"><i class="fas fa-bars"></i></button>
+  <a href="plataforma.html" class="navbar-brand">
+    <div class="brand-icon"><i class="fas fa-tools"></i></div>
+    Kuba Tech
+  </a>
+</nav>
+
+<div id="wrapper">
+  <aside id="sidebar">
+    <span class="sidebar-label">Plataforma</span>
+    <a href="plataforma.html" class="nav-item" data-page="plataforma"><i class="fas fa-building"></i> Empresas</a>
+  </aside>
+
+  <main id="main-content">
+
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Painel da Plataforma</h1>
+        <p class="page-sub">Visão geral e gestão das empresas contratantes (tenants)</p>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-icon ico-purple"><i class="fas fa-building"></i></div>
+        <div>
+          <div class="stat-val" id="s-empresas">—</div>
+          <div class="stat-lbl">Empresas</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon ico-green"><i class="fas fa-check-circle"></i></div>
+        <div>
+          <div class="stat-val" id="s-ativas">—</div>
+          <div class="stat-lbl">Empresas Ativas</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon ico-blue"><i class="fas fa-users"></i></div>
+        <div>
+          <div class="stat-val" id="s-usuarios">—</div>
+          <div class="stat-lbl">Usuários</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon ico-yellow"><i class="fas fa-file-invoice"></i></div>
+        <div>
+          <div class="stat-val" id="s-ordens">—</div>
+          <div class="stat-lbl">Ordens de Serviço</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon ico-red"><i class="fas fa-sack-dollar"></i></div>
+        <div>
+          <div class="stat-val" id="s-receita">—</div>
+          <div class="stat-lbl">Receita Mensal</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Search / filter -->
+    <div class="toolbar">
+      <div class="search-wrap">
+        <i class="fas fa-search"></i>
+        <input type="text" class="search-input" id="search-input" placeholder="Buscar por empresa, CNPJ ou e-mail...">
+      </div>
+      <select class="filter-sel" id="filter-status">
+        <option value="">Todos os status</option>
+        <option value="active">Ativas</option>
+        <option value="suspended">Suspensas</option>
+        <option value="canceled">Canceladas</option>
+      </select>
+      <button class="btn-sort" id="btn-sort">
+        <i class="fas fa-sort-alpha-down"></i> A–Z
+      </button>
+    </div>
+
+    <!-- Tenants table -->
+    <div class="tcard">
+      <div class="tscroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Empresa</th>
+              <th>CNPJ</th>
+              <th>Plano</th>
+              <th>Status</th>
+              <th>Usuários</th>
+              <th>O.S.</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Drawer -->
+<div id="overlay" class="overlay"></div>
+<div id="drawer" class="drawer">
+  <div class="drawer-hd">
+    <div>
+      <div class="drawer-title" id="drawer-title">Empresa</div>
+      <div class="drawer-mode" id="drawer-mode">Detalhes</div>
+    </div>
+    <button class="drawer-x" id="drawer-x">×</button>
+  </div>
+  <div class="drawer-body" id="drawer-body"></div>
+  <div class="drawer-ft" id="drawer-ft"></div>
+</div>
+
+<script src="../js/config.js"></script>
+<script src="../js/shared.js"></script>
+<script src="../js/plataforma.js"></script>
+</body>
+</html>
