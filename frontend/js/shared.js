@@ -75,10 +75,10 @@ const ROLE_LABELS = {
 // Páginas que cada perfil pode abrir.
 const PAGE_ACCESS = {
   platform_admin: ['plataforma'],
-  company_admin: ['dashboard', 'clientes', 'dispositivos', 'os', 'usuarios'],
-  attendant: ['dashboard', 'clientes', 'dispositivos', 'os'],
-  technician: ['dashboard', 'os'],
-  manager: ['dashboard', 'clientes', 'dispositivos', 'os'],
+  company_admin: ['index', 'clientes', 'dispositivos', 'os', 'usuarios'],
+  attendant: ['index', 'clientes', 'dispositivos', 'os'],
+  technician: ['index', 'os'],
+  manager: ['index', 'clientes', 'dispositivos', 'os'],
 };
 
 // Perfis autorizados a criar/editar em cada módulo.
@@ -105,11 +105,11 @@ function canDelete() {
 function homePageFor(role) {
   if (role === 'platform_admin') return '/html/plataforma.html';
   if (role === 'technician') return '/html/os.html';
-  return '/html/dashboard.html';
+  return '/html/index.html';
 }
 
 function currentPage() {
-  return window.location.pathname.split('/').pop().replace('.html', '') || 'dashboard';
+  return window.location.pathname.split('/').pop().replace('.html', '') || 'index';
 }
 
 // Controle de acesso executado na entrada de cada página.

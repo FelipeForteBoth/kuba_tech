@@ -12,7 +12,7 @@
 
 <nav class="navbar">
   <button id="menu-btn"><i class="fas fa-bars"></i></button>
-  <a href="dashboard.html" class="navbar-brand">
+  <a href="index.html" class="navbar-brand">
     <div class="brand-icon"><i class="fas fa-tools"></i></div>
     Kuba Tech
   </a>
@@ -21,10 +21,11 @@
 <div id="wrapper">
   <aside id="sidebar">
     <span class="sidebar-label">Menu Principal</span>
-    <a href="dashboard.html"    class="nav-item" data-page="dashboard"><i class="fas fa-home"></i> Dashboard</a>
+    <a href="index.html"        class="nav-item" data-page="index"><i class="fas fa-home"></i> Dashboard</a>
     <a href="clientes.html"     class="nav-item" data-page="clientes"><i class="fas fa-users"></i> Clientes</a>
-    <a href="dispositivos.html" class="nav-item" data-page="dispositivos"><i class="fas fa-laptop-medical"></i> Dispositivos</a>
+    <a href="dispositivos.html" class="nav-item" data-page="dispositivos"><i class="fas fa-laptop-medical"></i> Equipamentos</a>
     <a href="os.html"           class="nav-item" data-page="os"><i class="fas fa-file-invoice"></i> Ordens de Serviço</a>
+    <a href="usuarios.html"     class="nav-item" data-page="usuarios"><i class="fas fa-user-shield"></i> Usuários</a>
   </aside>
 
   <main id="main-content">
@@ -34,7 +35,7 @@
         <h1 class="page-title">Clientes</h1>
         <p class="page-sub" id="sub-count">Carregando...</p>
       </div>
-      <button class="btn btn-primary" id="btn-new">
+      <button class="btn btn-primary" id="btn-new" data-requires="customers">
         <i class="fas fa-plus"></i> Novo Cliente
       </button>
     </div>

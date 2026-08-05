@@ -6,9 +6,12 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
+// SSL é exigido pelo Supabase. Em Postgres local defina DB_SSL=false.
+const useSsl = String(process.env.DB_SSL || 'true').toLowerCase() !== 'false';
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
+  ssl: useSsl ? { rejectUnauthorized: false } : false,
   max: Number(process.env.DB_POOL_MAX || 10),
 });
 

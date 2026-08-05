@@ -20,7 +20,7 @@
 
 <div id="wrapper">
   <aside id="sidebar">
-    <span class="sidebar-label">Plataforma</span>
+    <span class="sidebar-label">Administração da Plataforma</span>
     <a href="plataforma.html" class="nav-item" data-page="plataforma"><i class="fas fa-building"></i> Empresas</a>
   </aside>
 
@@ -29,80 +29,49 @@
     <div class="page-header">
       <div>
         <h1 class="page-title">Painel da Plataforma</h1>
-        <p class="page-sub">Visão geral e gestão das empresas contratantes (tenants)</p>
+        <p class="page-sub" id="sub-count">Carregando...</p>
       </div>
     </div>
 
-    <!-- Stats -->
     <div class="stat-grid">
       <div class="stat-card">
         <div class="stat-icon ico-purple"><i class="fas fa-building"></i></div>
-        <div>
-          <div class="stat-val" id="s-empresas">—</div>
-          <div class="stat-lbl">Empresas</div>
-        </div>
+        <div><div class="stat-val" id="s-empresas">—</div><div class="stat-lbl">Empresas</div></div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon ico-green"><i class="fas fa-check-circle"></i></div>
-        <div>
-          <div class="stat-val" id="s-ativas">—</div>
-          <div class="stat-lbl">Empresas Ativas</div>
-        </div>
+        <div class="stat-icon ico-green"><i class="fas fa-circle-check"></i></div>
+        <div><div class="stat-val" id="s-ativas">—</div><div class="stat-lbl">Assinaturas ativas</div></div>
       </div>
       <div class="stat-card">
         <div class="stat-icon ico-blue"><i class="fas fa-users"></i></div>
-        <div>
-          <div class="stat-val" id="s-usuarios">—</div>
-          <div class="stat-lbl">Usuários</div>
-        </div>
+        <div><div class="stat-val" id="s-usuarios">—</div><div class="stat-lbl">Usuários</div></div>
       </div>
       <div class="stat-card">
         <div class="stat-icon ico-yellow"><i class="fas fa-file-invoice"></i></div>
-        <div>
-          <div class="stat-val" id="s-ordens">—</div>
-          <div class="stat-lbl">Ordens de Serviço</div>
-        </div>
+        <div><div class="stat-val" id="s-ordens">—</div><div class="stat-lbl">Ordens de serviço</div></div>
       </div>
       <div class="stat-card">
         <div class="stat-icon ico-red"><i class="fas fa-sack-dollar"></i></div>
-        <div>
-          <div class="stat-val" id="s-receita">—</div>
-          <div class="stat-lbl">Receita Mensal</div>
-        </div>
+        <div><div class="stat-val" id="s-receita">—</div><div class="stat-lbl">Receita mensal</div></div>
       </div>
     </div>
 
-    <!-- Search / filter -->
+    <div class="page-header"><div><h2 class="page-title" style="font-size:18px;">Planos disponíveis</h2></div></div>
+    <div class="stat-grid" id="planos"></div>
+
     <div class="toolbar">
       <div class="search-wrap">
         <i class="fas fa-search"></i>
-        <input type="text" class="search-input" id="search-input" placeholder="Buscar por empresa, CNPJ ou e-mail...">
+        <input type="text" class="search-input" id="search-input" placeholder="Buscar por razão social, CNPJ ou e-mail...">
       </div>
-      <select class="filter-sel" id="filter-status">
-        <option value="">Todos os status</option>
-        <option value="active">Ativas</option>
-        <option value="suspended">Suspensas</option>
-        <option value="canceled">Canceladas</option>
-      </select>
-      <button class="btn-sort" id="btn-sort">
-        <i class="fas fa-sort-alpha-down"></i> A–Z
-      </button>
+      <button class="btn-sort" id="btn-sort"><i class="fas fa-sort-alpha-down"></i> A–Z</button>
     </div>
 
-    <!-- Tenants table -->
     <div class="tcard">
       <div class="tscroll">
         <table>
           <thead>
-            <tr>
-              <th>Empresa</th>
-              <th>CNPJ</th>
-              <th>Plano</th>
-              <th>Status</th>
-              <th>Usuários</th>
-              <th>O.S.</th>
-              <th></th>
-            </tr>
+            <tr><th>Empresa</th><th>CNPJ</th><th>Plano</th><th>Usuários</th><th>O.S.</th><th>Assinatura</th><th></th></tr>
           </thead>
           <tbody id="tbody"></tbody>
         </table>
@@ -112,13 +81,12 @@
   </main>
 </div>
 
-<!-- Drawer -->
 <div id="overlay" class="overlay"></div>
 <div id="drawer" class="drawer">
   <div class="drawer-hd">
     <div>
       <div class="drawer-title" id="drawer-title">Empresa</div>
-      <div class="drawer-mode" id="drawer-mode">Detalhes</div>
+      <div class="drawer-mode" id="drawer-mode">Visualização</div>
     </div>
     <button class="drawer-x" id="drawer-x">×</button>
   </div>

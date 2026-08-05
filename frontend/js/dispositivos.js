@@ -1,195 +1,178 @@
-// ── STATE ──
+// Tela de Equipamentos — CRUD consumindo /api/devices.
 let devices = [];
-let sortDir  = 1;
-let editingSerial = null;
+let customersRef = [];
+let sortDir = 1;
+let editingId = null;
 
-// ── FETCH ──
-async function fetchDispositivos() {
+async function fetchDados() {
   try {
-    const res = await authFetch(`${API_URL}/devices?t=${Date.now()}`);
-    devices = await res.json();
-    render(devices);
+    const [dRes, cRes] = await Promise.all([
+      authFetch(`${API_URL}/devices?t=${Date.now()}`),
+      authFetch(`${API_URL}/customers?t=${Date.now()}`),
+    ]);
+    if (!dRes.ok || !cRes.ok) return;
+    devices = await dRes.json();
+    customersRef = await cRes.json();
+    applyFilter();
     document.getElementById('sub-count').textContent =
-      `${devices.length} dispositivo${devices.length !== 1 ? 's' : ''} cadastrado${devices.length !== 1 ? 's' : ''}`;
-  } catch (e) { console.error(e); }
+      `${devices.length} equipamento${devices.length !== 1 ? 's' : ''} cadastrado${devices.length !== 1 ? 's' : ''}`;
+  } catch (e) {
+    console.error(e);
+    toast('Não foi possível carregar os equipamentos.', 'err');
+  }
 }
 
-// ── RENDER ──
 function render(data) {
   const tbody = document.getElementById('tbody');
   if (!data.length) {
-    tbody.innerHTML = `<tr><td colspan="4">
-      <div class="empty">
-        <i class="fas fa-laptop-medical"></i>
-        <p>Nenhum dispositivo cadastrado ainda.</p>
-      </div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6">
+      <div class="empty"><i class="fas fa-laptop-medical"></i>
+      <p>Nenhum equipamento cadastrado ainda.</p></div></td></tr>`;
     return;
   }
-  tbody.innerHTML = data.map(d => `
-    <tr onclick="viewDispositivo('${d.serial_number}')">
-      <td><strong>${d.serial_number}</strong></td>
-      <td class="td2">${d.type}</td>
-      <td class="td2 mono">${d.customer_cpf}</td>
+  tbody.innerHTML = data.map((d) => `
+    <tr onclick="viewDispositivo('${d.id}')">
+      <td><strong>${esc(d.serial_number)}</strong></td>
+      <td class="td2">${esc(d.type)}</td>
+      <td class="td2">${esc(d.brand || '—')} ${esc(d.model || '')}</td>
+      <td class="td2">${esc(d.customer_name)}</td>
+      <td class="td2 mono">${esc(d.customer_cpf)}</td>
       <td><i class="fas fa-chevron-right rarrow"></i></td>
     </tr>`).join('');
 }
 
-// ── FILTER + SORT ──
 function applyFilter() {
   const q = document.getElementById('search-input').value.toLowerCase();
-  let data = devices.filter(d =>
-    d.serial_number.toLowerCase().includes(q) ||
-    d.type.toLowerCase().includes(q) ||
-    d.customer_cpf.includes(q)
-  );
+  const data = devices.filter((d) =>
+    [d.serial_number, d.type, d.brand, d.model, d.customer_name, d.customer_cpf]
+      .filter(Boolean).some((v) => String(v).toLowerCase().includes(q)));
   data.sort((a, b) => sortDir * a.serial_number.localeCompare(b.serial_number));
   render(data);
 }
 
-// ── VIEW MODE ──
-function viewDispositivo(serial) {
-  const d = devices.find(x => x.serial_number === serial);
+function viewDispositivo(id) {
+  const d = devices.find((x) => x.id === id);
   if (!d) return;
-  editingSerial = null;
+  editingId = null;
 
   document.getElementById('drawer-title').textContent = d.serial_number;
-  document.getElementById('drawer-mode').textContent  = 'Detalhes do Dispositivo';
-
+  document.getElementById('drawer-mode').textContent = 'Detalhes do Equipamento';
   document.getElementById('drawer-body').innerHTML = `
-    <div class="d-section"><i class="fas fa-laptop-medical"></i> Informações do Dispositivo</div>
-    <div class="d-field"><div class="d-lbl">Serial / IMEI</div><div class="d-val mono">${d.serial_number}</div></div>
-    <div class="d-field"><div class="d-lbl">Tipo de Aparelho</div><div class="d-val">${d.type}</div></div>
+    <div class="d-section"><i class="fas fa-laptop-medical"></i> Equipamento</div>
+    <div class="d-field"><div class="d-lbl">Número de Série / IMEI</div><div class="d-val mono">${esc(d.serial_number)}</div></div>
+    <div class="d-field"><div class="d-lbl">Tipo</div><div class="d-val">${esc(d.type)}</div></div>
+    <div class="d-field"><div class="d-lbl">Marca</div><div class="d-val">${esc(d.brand || '—')}</div></div>
+    <div class="d-field"><div class="d-lbl">Modelo</div><div class="d-val">${esc(d.model || '—')}</div></div>
     <div class="d-divider"></div>
     <div class="d-section"><i class="fas fa-user"></i> Proprietário</div>
-    <div class="d-field"><div class="d-lbl">CPF</div><div class="d-val mono">${d.customer_cpf}</div></div>`;
+    <div class="d-field"><div class="d-lbl">Cliente</div><div class="d-val">${esc(d.customer_name)}</div></div>
+    <div class="d-field"><div class="d-lbl">CPF</div><div class="d-val mono">${esc(d.customer_cpf)}</div></div>`;
 
-  document.getElementById('drawer-ft').innerHTML = `
-    <button class="btn btn-del btn-sm" onclick="deleteDispositivo('${d.serial_number}')">
-      <i class="fas fa-trash"></i> Excluir
-    </button>
-    <button class="btn btn-ghost btn-sm" onclick="editDispositivo('${d.serial_number}')">
-      <i class="fas fa-edit"></i> Editar
-    </button>`;
-
+  const acoes = [];
+  if (canDelete()) acoes.push(`<button class="btn btn-del btn-sm" onclick="deleteDispositivo('${d.id}')"><i class="fas fa-trash"></i> Excluir</button>`);
+  if (can('devices')) acoes.push(`<button class="btn btn-ghost btn-sm" onclick="editDispositivo('${d.id}')"><i class="fas fa-edit"></i> Editar</button>`);
+  document.getElementById('drawer-ft').innerHTML = acoes.join('');
   openDrawer();
 }
 
-// ── NEW MODE ──
 function newDispositivo() {
-  editingSerial = null;
-  document.getElementById('drawer-title').textContent = 'Novo Dispositivo';
-  document.getElementById('drawer-mode').textContent  = 'Cadastro';
-  document.getElementById('drawer-body').innerHTML    = formHTML(null);
+  editingId = null;
+  document.getElementById('drawer-title').textContent = 'Novo Equipamento';
+  document.getElementById('drawer-mode').textContent = 'Cadastro';
+  document.getElementById('drawer-body').innerHTML = formHTML(null);
   document.getElementById('drawer-ft').innerHTML = `
     <button class="btn btn-ghost btn-sm" onclick="closeDrawer()">Cancelar</button>
-    <button class="btn btn-primary btn-sm" onclick="saveDispositivo()">
-      <i class="fas fa-save"></i> Salvar
-    </button>`;
+    <button class="btn btn-primary btn-sm" onclick="saveDispositivo()"><i class="fas fa-save"></i> Salvar</button>`;
   openDrawer();
 }
 
-// ── EDIT MODE ──
-function editDispositivo(serial) {
-  const d = devices.find(x => x.serial_number === serial);
+function editDispositivo(id) {
+  const d = devices.find((x) => x.id === id);
   if (!d) return;
-  editingSerial = serial;
-  document.getElementById('drawer-title').textContent = 'Editar Dispositivo';
-  document.getElementById('drawer-mode').textContent  = 'Edição';
-  document.getElementById('drawer-body').innerHTML    = formHTML(d);
+  editingId = id;
+  document.getElementById('drawer-title').textContent = 'Editar Equipamento';
+  document.getElementById('drawer-mode').textContent = 'Edição';
+  document.getElementById('drawer-body').innerHTML = formHTML(d);
   document.getElementById('drawer-ft').innerHTML = `
-    <button class="btn btn-ghost btn-sm" onclick="viewDispositivo('${serial}')">Cancelar</button>
-    <button class="btn btn-primary btn-sm" onclick="saveDispositivo()">
-      <i class="fas fa-save"></i> Salvar
-    </button>`;
+    <button class="btn btn-ghost btn-sm" onclick="viewDispositivo('${id}')">Cancelar</button>
+    <button class="btn btn-primary btn-sm" onclick="saveDispositivo()"><i class="fas fa-save"></i> Salvar</button>`;
   openDrawer();
 }
 
-// ── FORM HTML ──
+function customerOptions(selected) {
+  if (!customersRef.length) return '<option value="">Cadastre um cliente primeiro</option>';
+  return ['<option value="">Selecione o cliente</option>']
+    .concat(customersRef.map((c) =>
+      `<option value="${c.id}" ${c.id === selected ? 'selected' : ''}>${esc(c.name)} — ${esc(c.cpf)}</option>`))
+    .join('');
+}
+
 function formHTML(d) {
   return `
-    <div class="d-section"><i class="fas fa-laptop-medical"></i> Dados do Dispositivo</div>
-    <div class="fg">
-      <label>Serial / IMEI *</label>
-      <input type="text" class="fc" id="f-serial"
-        value="${d ? d.serial_number : ''}" ${d ? 'disabled' : ''}
-        placeholder="Número de Série ou IMEI">
-    </div>
-    <div class="fg">
-      <label>Tipo de Aparelho *</label>
-      <input type="text" class="fc" id="f-tipo"
-        value="${d ? d.type : ''}" placeholder="Celular, Notebook, PC...">
-    </div>
-    <div class="d-divider"></div>
     <div class="d-section"><i class="fas fa-user"></i> Proprietário</div>
-    <div class="fg">
-      <label>CPF do Cliente *</label>
-      <input type="text" class="fc" id="f-cpf" data-mask="cpf" maxlength="40"
-        value="${d ? d.customer_cpf : ''}" placeholder="000.000.000-00">
-    </div>`;
+    <div class="fg"><label>Cliente *</label>
+      <select class="fc" id="f-cliente">${customerOptions(d ? d.customer_id : '')}</select></div>
+    <div class="d-divider"></div>
+    <div class="d-section"><i class="fas fa-laptop-medical"></i> Equipamento</div>
+    <div class="fg"><label>Número de Série / IMEI *</label>
+      <input type="text" class="fc" id="f-serial" value="${esc(d ? d.serial_number : '')}" ${d ? 'disabled' : ''} placeholder="Ex.: SN-123456"></div>
+    <div class="fg"><label>Tipo *</label>
+      <input type="text" class="fc" id="f-tipo" value="${esc(d ? d.type : '')}" placeholder="Notebook, Celular, Impressora..."></div>
+    <div class="fg"><label>Marca</label>
+      <input type="text" class="fc" id="f-marca" value="${esc(d && d.brand ? d.brand : '')}" placeholder="Dell, Samsung..."></div>
+    <div class="fg"><label>Modelo</label>
+      <input type="text" class="fc" id="f-modelo" value="${esc(d && d.model ? d.model : '')}" placeholder="Inspiron 15, Galaxy S22..."></div>`;
 }
 
-// ── SAVE ──
 async function saveDispositivo() {
-  const cpfField = document.getElementById('f-cpf');
-  cpfField.value = maskCPF(cpfField.value);
+  const customerId = document.getElementById('f-cliente').value;
+  const serialNumber = document.getElementById('f-serial').value.trim();
+  const type = document.getElementById('f-tipo').value.trim();
+  const brand = document.getElementById('f-marca').value.trim();
+  const model = document.getElementById('f-modelo').value.trim();
 
-  const serial = editingSerial || document.getElementById('f-serial').value.trim();
-  const type   = document.getElementById('f-tipo').value.trim();
-  const cpf    = cpfField.value.trim();
+  if (!customerId) return toast('Selecione o cliente proprietário.', 'err');
+  if (!editingId && !isValidSerial(serialNumber)) {
+    return toast('Número de série inválido (mínimo 4 caracteres: letras, números, "-" ou "/").', 'err');
+  }
+  if (!isNonEmptyText(type)) return toast('Informe o tipo de equipamento.', 'err');
 
-  if (!serial || !type || !cpf) {
-    toast('Preencha todos os campos.', 'err'); return;
-  }
-  if (!editingSerial && !isValidSerial(serial)) {
-    toast('Serial/IMEI inválido. Use ao menos 4 caracteres (letras, números, "-" ou "/").', 'err'); return;
-  }
-  if (!isNonEmptyText(type)) {
-    toast('Informe o tipo de aparelho (ao menos 2 caracteres).', 'err'); return;
-  }
-  if (!isValidCPF(cpf)) {
-    toast('CPF do cliente inválido. Confira os números digitados.', 'err'); return;
-  }
-
-  const method = editingSerial ? 'PUT' : 'POST';
-  const url    = editingSerial
-    ? `${API_URL}/devices/${editingSerial}`
-    : `${API_URL}/devices`;
-
+  const url = editingId ? `${API_URL}/devices/${editingId}` : `${API_URL}/devices`;
   try {
     const res = await authFetch(url, {
-      method,
+      method: editingId ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ serial_number: serial, customer_cpf: cpf, type })
+      body: JSON.stringify({ customerId, serialNumber, type, brand, model }),
     });
-    if (res.ok) {
-      toast('Dispositivo salvo com sucesso!');
-      closeDrawer();
-      fetchDispositivos();
-    } else {
-      const err = await res.json();
-      toast(err.error || 'Erro ao salvar.', 'err');
-    }
-  } catch { toast('Erro de conexão.', 'err'); }
-}
-
-// ── DELETE ──
-async function deleteDispositivo(serial) {
-  if (!confirm('Excluir este dispositivo?')) return;
-  try {
-    await authFetch(`${API_URL}/devices/${serial}`, { method: 'DELETE' });
-    toast('Dispositivo excluído.');
+    const dados = await res.json();
+    if (!res.ok) return toast(dados.error || 'Erro ao salvar.', 'err');
+    toast('Equipamento salvo com sucesso!');
     closeDrawer();
-    fetchDispositivos();
-  } catch { toast('Erro ao excluir.', 'err'); }
+    fetchDados();
+  } catch {
+    toast('Erro de conexão.', 'err');
+  }
 }
 
-// ── INIT ──
-document.addEventListener('DOMContentLoaded', () => {
-  fetchDispositivos();
+async function deleteDispositivo(id) {
+  if (!confirm('Excluir este equipamento? As ordens de serviço vinculadas também serão removidas.')) return;
+  try {
+    const res = await authFetch(`${API_URL}/devices/${id}`, { method: 'DELETE' });
+    const dados = await res.json();
+    if (!res.ok) return toast(dados.error || 'Erro ao excluir.', 'err');
+    toast('Equipamento excluído.');
+    closeDrawer();
+    fetchDados();
+  } catch {
+    toast('Erro de conexão.', 'err');
+  }
+}
 
+document.addEventListener('DOMContentLoaded', () => {
+  if (!getSession()) return;
+  fetchDados();
   document.getElementById('btn-new').addEventListener('click', newDispositivo);
   document.getElementById('search-input').addEventListener('input', applyFilter);
-
   document.getElementById('btn-sort').addEventListener('click', () => {
     sortDir *= -1;
     const btn = document.getElementById('btn-sort');

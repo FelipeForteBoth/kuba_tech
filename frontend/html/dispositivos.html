@@ -12,7 +12,7 @@
 
 <nav class="navbar">
   <button id="menu-btn"><i class="fas fa-bars"></i></button>
-  <a href="dashboard.html" class="navbar-brand">
+  <a href="index.html" class="navbar-brand">
     <div class="brand-icon"><i class="fas fa-tools"></i></div>
     Kuba Tech
   </a>
@@ -21,28 +21,29 @@
 <div id="wrapper">
   <aside id="sidebar">
     <span class="sidebar-label">Menu Principal</span>
-    <a href="dashboard.html"    class="nav-item" data-page="dashboard"><i class="fas fa-home"></i> Dashboard</a>
+    <a href="index.html"        class="nav-item" data-page="index"><i class="fas fa-home"></i> Dashboard</a>
     <a href="clientes.html"     class="nav-item" data-page="clientes"><i class="fas fa-users"></i> Clientes</a>
-    <a href="dispositivos.html" class="nav-item" data-page="dispositivos"><i class="fas fa-laptop-medical"></i> Dispositivos</a>
+    <a href="dispositivos.html" class="nav-item" data-page="dispositivos"><i class="fas fa-laptop-medical"></i> Equipamentos</a>
     <a href="os.html"           class="nav-item" data-page="os"><i class="fas fa-file-invoice"></i> Ordens de Serviço</a>
+    <a href="usuarios.html"     class="nav-item" data-page="usuarios"><i class="fas fa-user-shield"></i> Usuários</a>
   </aside>
 
   <main id="main-content">
 
     <div class="page-header">
       <div>
-        <h1 class="page-title">Dispositivos</h1>
+        <h1 class="page-title">Equipamentos</h1>
         <p class="page-sub" id="sub-count">Carregando...</p>
       </div>
-      <button class="btn btn-primary" id="btn-new">
-        <i class="fas fa-plus"></i> Novo Dispositivo
+      <button class="btn btn-primary" id="btn-new" data-requires="devices">
+        <i class="fas fa-plus"></i> Novo Equipamento
       </button>
     </div>
 
     <div class="toolbar">
       <div class="search-wrap">
         <i class="fas fa-search"></i>
-        <input type="text" class="search-input" id="search-input" placeholder="Buscar por serial, CPF ou tipo...">
+        <input type="text" class="search-input" id="search-input" placeholder="Buscar por série, tipo, marca ou cliente...">
       </div>
       <button class="btn-sort" id="btn-sort">
         <i class="fas fa-sort-alpha-down"></i> A–Z
@@ -54,9 +55,11 @@
         <table>
           <thead>
             <tr>
-              <th>Serial / IMEI</th>
+              <th>Série / IMEI</th>
               <th>Tipo</th>
-              <th>CPF do Proprietário</th>
+              <th>Marca / Modelo</th>
+              <th>Cliente</th>
+              <th>CPF</th>
               <th></th>
             </tr>
           </thead>
@@ -73,7 +76,7 @@
 <div id="drawer" class="drawer">
   <div class="drawer-hd">
     <div>
-      <div class="drawer-title" id="drawer-title">Dispositivo</div>
+      <div class="drawer-title" id="drawer-title">Equipamento</div>
       <div class="drawer-mode" id="drawer-mode">Visualização</div>
     </div>
     <button class="drawer-x" id="drawer-x">×</button>

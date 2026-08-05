@@ -1,308 +1,295 @@
-// ── STATE ──
+// Tela de Ordens de Serviço — ciclo de vida completo da O.S.
 let orders = [];
-let sortDir = -1; // mais recentes primeiro
+let customersRef = [];
+let devicesRef = [];
+let techniciansRef = [];
+let sortDir = -1;
 let editingId = null;
 
-const isCliente = () => localStorage.getItem('tipoUsuario') === 'cliente';
+const STATUS = ['A Realizar', 'Em Andamento', 'Finalizada', 'Cancelada'];
 
-// ── HELPERS ──
 function fmtDate(d) {
-  return new Date(d).toLocaleDateString('pt-BR');
+  if (!d) return '—';
+  const iso = String(d).slice(0, 10);
+  const [y, m, day] = iso.split('-');
+  return `${day}/${m}/${y}`;
 }
 
 function badgeStatus(s) {
-  if (s === 'A Realizar')   return `<span class="badge badge-todo">${s}</span>`;
-  if (s === 'Em Andamento') return `<span class="badge badge-prog">${s}</span>`;
-  return `<span class="badge badge-done">${s}</span>`;
+  const cls = { 'A Realizar': 'badge-todo', 'Em Andamento': 'badge-prog', Finalizada: 'badge-done', Cancelada: 'badge-del' }[s] || 'badge-todo';
+  return `<span class="badge ${cls}">${esc(s)}</span>`;
 }
 
-// ── FETCH ──
-async function fetchOS() {
+async function fetchDados() {
   try {
-    const res = await authFetch(`${API_URL}/service-orders?t=${Date.now()}`);
-    orders = await res.json();
-    render(orders);
-    const tot = orders.length;
+    const requests = [authFetch(`${API_URL}/service-orders?t=${Date.now()}`)];
+    if (can('orders')) {
+      requests.push(
+        authFetch(`${API_URL}/customers?t=${Date.now()}`),
+        authFetch(`${API_URL}/devices?t=${Date.now()}`),
+        authFetch(`${API_URL}/users/technicians?t=${Date.now()}`),
+      );
+    }
+    const responses = await Promise.all(requests);
+    if (!responses[0].ok) return;
+    orders = await responses[0].json();
+    if (responses.length > 1) {
+      customersRef = responses[1].ok ? await responses[1].json() : [];
+      devicesRef = responses[2].ok ? await responses[2].json() : [];
+      techniciansRef = responses[3].ok ? await responses[3].json() : [];
+    }
+    applyFilter();
     document.getElementById('sub-count').textContent =
-      `${tot} ordem${tot !== 1 ? 's' : ''} de serviço`;
-  } catch (e) { console.error(e); }
+      `${orders.length} ordem${orders.length !== 1 ? 'ns' : ''} de serviço`;
+  } catch (e) {
+    console.error(e);
+    toast('Não foi possível carregar as ordens de serviço.', 'err');
+  }
 }
 
-// ── RENDER ──
 function render(data) {
   const tbody = document.getElementById('tbody');
   if (!data.length) {
     tbody.innerHTML = `<tr><td colspan="7">
-      <div class="empty">
-        <i class="fas fa-file-invoice"></i>
-        <p>Nenhuma ordem de serviço encontrada.</p>
-      </div></td></tr>`;
+      <div class="empty"><i class="fas fa-file-invoice"></i>
+      <p>Nenhuma ordem de serviço encontrada.</p></div></td></tr>`;
     return;
   }
-  tbody.innerHTML = data.map(o => `
-    <tr onclick="viewOS(${o.id})">
-      <td><strong>#${o.id}</strong></td>
-      <td class="td2 mono">${o.customer_cpf}</td>
-      <td class="td2">${o.device_serial}</td>
-      <td class="td2">${o.technician}</td>
-      <td class="td3">${fmtDate(o.opening_date)}</td>
+  tbody.innerHTML = data.map((o) => `
+    <tr onclick="viewOS('${o.id}')">
+      <td><strong>#${esc(o.number)}</strong></td>
+      <td class="td2">${esc(o.customer_name)}<br><span class="mono">${esc(o.customer_cpf)}</span></td>
+      <td class="td2">${esc(o.device_type)} — ${esc(o.serial_number)}</td>
+      <td class="td2">${esc(o.technician_name || 'Não atribuído')}</td>
+      <td class="td2">${fmtDate(o.opening_date)}</td>
       <td>${badgeStatus(o.status)}</td>
       <td><i class="fas fa-chevron-right rarrow"></i></td>
     </tr>`).join('');
 }
 
-// ── FILTER + SORT ──
 function applyFilter() {
-  const q  = document.getElementById('search-input').value.toLowerCase();
-  const st = document.getElementById('filter-status').value;
-
-  let data = orders.filter(o => {
-    const matchQ = !q ||
-      String(o.id).includes(q) ||
-      o.customer_cpf.includes(q) ||
-      o.device_serial.toLowerCase().includes(q) ||
-      o.technician.toLowerCase().includes(q) ||
-      o.status.toLowerCase().includes(q) ||
-      o.problem_description.toLowerCase().includes(q);
-    const matchSt = !st || o.status === st;
-    return matchQ && matchSt;
+  const q = document.getElementById('search-input').value.toLowerCase();
+  const status = document.getElementById('filter-status').value;
+  const data = orders.filter((o) => {
+    const texto = [o.number, o.customer_name, o.customer_cpf, o.serial_number, o.device_type, o.technician_name, o.problem_description]
+      .filter(Boolean).some((v) => String(v).toLowerCase().includes(q));
+    return texto && (!status || o.status === status);
   });
-
-  data.sort((a, b) => sortDir * (a.id - b.id));
+  data.sort((a, b) => sortDir * (a.number - b.number));
   render(data);
 }
 
-// ── VIEW ──
 function viewOS(id) {
-  const o = orders.find(x => x.id === id);
+  const o = orders.find((x) => x.id === id);
   if (!o) return;
   editingId = null;
 
-  document.getElementById('drawer-title').textContent = `Ordem de Serviço #${o.id}`;
-  document.getElementById('drawer-mode').textContent  = o.status;
-
+  document.getElementById('drawer-title').textContent = `O.S. #${o.number}`;
+  document.getElementById('drawer-mode').textContent = 'Detalhes da Ordem de Serviço';
   document.getElementById('drawer-body').innerHTML = `
-    <div class="d-section"><i class="fas fa-info-circle"></i> Informações Gerais</div>
+    <div class="d-section"><i class="fas fa-info-circle"></i> Situação</div>
     <div class="d-field"><div class="d-lbl">Status</div><div class="d-val">${badgeStatus(o.status)}</div></div>
-    <div class="d-field"><div class="d-lbl">Data de Abertura</div><div class="d-val">${fmtDate(o.opening_date)}</div></div>
-    <div class="d-field"><div class="d-lbl">Técnico Responsável</div><div class="d-val">${o.technician}</div></div>
+    <div class="d-field"><div class="d-lbl">Abertura</div><div class="d-val">${fmtDate(o.opening_date)}</div></div>
+    <div class="d-field"><div class="d-lbl">Técnico Responsável</div><div class="d-val">${esc(o.technician_name || 'Não atribuído')}</div></div>
+    <div class="d-field"><div class="d-lbl">Aberta por</div><div class="d-val">${esc(o.created_by_name || '—')}</div></div>
     <div class="d-divider"></div>
-    <div class="d-section"><i class="fas fa-user"></i> Cliente & Aparelho</div>
-    <div class="d-field"><div class="d-lbl">CPF do Cliente</div><div class="d-val mono">${o.customer_cpf}</div></div>
-    <div class="d-field"><div class="d-lbl">Serial do Aparelho</div><div class="d-val mono">${o.device_serial}</div></div>
+    <div class="d-section"><i class="fas fa-user"></i> Cliente</div>
+    <div class="d-field"><div class="d-lbl">Nome</div><div class="d-val">${esc(o.customer_name)}</div></div>
+    <div class="d-field"><div class="d-lbl">CPF</div><div class="d-val mono">${esc(o.customer_cpf)}</div></div>
     <div class="d-divider"></div>
-    <div class="d-section"><i class="fas fa-history"></i> Histórico / Defeito</div>
-    <div class="pre-box">${o.problem_description}</div>`;
+    <div class="d-section"><i class="fas fa-laptop-medical"></i> Equipamento</div>
+    <div class="d-field"><div class="d-lbl">Tipo</div><div class="d-val">${esc(o.device_type)}</div></div>
+    <div class="d-field"><div class="d-lbl">Marca / Modelo</div><div class="d-val">${esc(o.device_brand || '—')} ${esc(o.device_model || '')}</div></div>
+    <div class="d-field"><div class="d-lbl">Série</div><div class="d-val mono">${esc(o.serial_number)}</div></div>
+    <div class="d-divider"></div>
+    <div class="d-section"><i class="fas fa-clipboard-list"></i> Serviço</div>
+    <div class="d-field"><div class="d-lbl">Defeito relatado</div><div class="d-val pre-box">${esc(o.problem_description)}</div></div>
+    <div class="d-field"><div class="d-lbl">Solução aplicada</div><div class="d-val pre-box">${esc(o.solution || 'Ainda não informada.')}</div></div>`;
 
-  // Cliente não vê os botões de editar / excluir
-  if (isCliente()) {
-    document.getElementById('drawer-ft').innerHTML = '';
-  } else {
-    document.getElementById('drawer-ft').innerHTML = `
-      <button class="btn btn-del btn-sm" onclick="deleteOS(${o.id})">
-        <i class="fas fa-trash"></i> Excluir
-      </button>
-      <button class="btn btn-ghost btn-sm" onclick="editOS(${o.id})">
-        <i class="fas fa-edit"></i> Editar / Atualizar
-      </button>`;
-  }
-
+  const acoes = [];
+  if (canDelete()) acoes.push(`<button class="btn btn-del btn-sm" onclick="deleteOS('${o.id}')"><i class="fas fa-trash"></i> Excluir</button>`);
+  if (can('orderStatus')) acoes.push(`<button class="btn btn-ghost btn-sm" onclick="statusOS('${o.id}')"><i class="fas fa-sync"></i> Andamento</button>`);
+  if (can('orders')) acoes.push(`<button class="btn btn-primary btn-sm" onclick="editOS('${o.id}')"><i class="fas fa-edit"></i> Editar</button>`);
+  document.getElementById('drawer-ft').innerHTML = acoes.join('');
   openDrawer();
 }
 
-// ── NEW (admin) ──
+// ── Andamento (Técnico, Atendente e Administrador) ──
+function statusOS(id) {
+  const o = orders.find((x) => x.id === id);
+  if (!o) return;
+  document.getElementById('drawer-title').textContent = `O.S. #${o.number}`;
+  document.getElementById('drawer-mode').textContent = 'Atualizar andamento';
+  document.getElementById('drawer-body').innerHTML = `
+    <div class="d-section"><i class="fas fa-sync"></i> Andamento do Serviço</div>
+    <div class="fg"><label>Status *</label>
+      <select class="fc" id="f-status">
+        ${STATUS.map((s) => `<option value="${s}" ${s === o.status ? 'selected' : ''}>${s}</option>`).join('')}
+      </select></div>
+    <div class="fg"><label>Solução aplicada (obrigatória ao finalizar)</label>
+      <textarea class="fc" id="f-solucao" rows="5" placeholder="Descreva o serviço executado...">${esc(o.solution || '')}</textarea></div>`;
+  document.getElementById('drawer-ft').innerHTML = `
+    <button class="btn btn-ghost btn-sm" onclick="viewOS('${id}')">Cancelar</button>
+    <button class="btn btn-primary btn-sm" onclick="saveStatus('${id}')"><i class="fas fa-save"></i> Salvar</button>`;
+  openDrawer();
+}
+
+async function saveStatus(id) {
+  const status = document.getElementById('f-status').value;
+  const solution = document.getElementById('f-solucao').value.trim();
+  if (status === 'Finalizada' && solution.length < 5) {
+    return toast('Descreva o serviço executado para finalizar a O.S.', 'err');
+  }
+  try {
+    const res = await authFetch(`${API_URL}/service-orders/${id}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status, solution }),
+    });
+    const dados = await res.json();
+    if (!res.ok) return toast(dados.error || 'Erro ao atualizar.', 'err');
+    toast('Andamento atualizado!');
+    closeDrawer();
+    fetchDados();
+  } catch {
+    toast('Erro de conexão.', 'err');
+  }
+}
+
+// ── Cadastro / edição completa ──
 function newOS() {
-  if (isCliente()) return;
   editingId = null;
   document.getElementById('drawer-title').textContent = 'Nova Ordem de Serviço';
-  document.getElementById('drawer-mode').textContent  = 'Cadastro';
-  document.getElementById('drawer-body').innerHTML    = formHTML(null);
+  document.getElementById('drawer-mode').textContent = 'Cadastro';
+  document.getElementById('drawer-body').innerHTML = formHTML(null);
+  bindClienteChange();
   document.getElementById('drawer-ft').innerHTML = `
     <button class="btn btn-ghost btn-sm" onclick="closeDrawer()">Cancelar</button>
-    <button class="btn btn-primary btn-sm" onclick="saveOS()">
-      <i class="fas fa-save"></i> Salvar O.S.
-    </button>`;
+    <button class="btn btn-primary btn-sm" onclick="saveOS()"><i class="fas fa-save"></i> Salvar</button>`;
   openDrawer();
 }
 
-// ── EDIT (admin) ──
 function editOS(id) {
-  if (isCliente()) return;
-  const o = orders.find(x => x.id === id);
+  const o = orders.find((x) => x.id === id);
   if (!o) return;
   editingId = id;
-
-  document.getElementById('drawer-title').textContent = `Editar O.S. #${id}`;
-  document.getElementById('drawer-mode').textContent  = 'Atualização';
-  document.getElementById('drawer-body').innerHTML    = formHTML(o);
+  document.getElementById('drawer-title').textContent = `Editar O.S. #${o.number}`;
+  document.getElementById('drawer-mode').textContent = 'Edição';
+  document.getElementById('drawer-body').innerHTML = formHTML(o);
+  bindClienteChange();
   document.getElementById('drawer-ft').innerHTML = `
-    <button class="btn btn-ghost btn-sm" onclick="viewOS(${id})">Cancelar</button>
-    <button class="btn btn-primary btn-sm" onclick="saveOS()">
-      <i class="fas fa-save"></i> Salvar Atualização
-    </button>`;
+    <button class="btn btn-ghost btn-sm" onclick="viewOS('${id}')">Cancelar</button>
+    <button class="btn btn-primary btn-sm" onclick="saveOS()"><i class="fas fa-save"></i> Salvar</button>`;
   openDrawer();
 }
 
-// ── FORM HTML ──
-function formHTML(o) {
-  const histHTML = o ? `
-    <div class="fg">
-      <label><i class="fas fa-history" style="color:var(--accent)"></i> Histórico Anterior</label>
-      <div class="pre-box" style="margin-bottom:0">${o.problem_description}</div>
-    </div>
-    <div class="fg">
-      <label>Nova Atualização / Relato *</label>
-      <textarea class="fc" id="f-problema" rows="4"
-        placeholder="Descreva a atualização ou novo diagnóstico..."></textarea>
-    </div>` : `
-    <div class="fg">
-      <label>Defeito / Descrição do Problema *</label>
-      <textarea class="fc" id="f-problema" rows="4"
-        placeholder="Descreva o defeito ou o problema relatado pelo cliente..."></textarea>
-    </div>`;
-
-  return `
-    <div class="d-section"><i class="fas fa-info-circle"></i> Dados da O.S.</div>
-    <div class="frow">
-      <div class="fg">
-        <label>CPF do Cliente *</label>
-        <input type="text" class="fc" id="f-cpf" data-mask="cpf" maxlength="40"
-          value="${o ? o.customer_cpf : ''}" ${o ? 'disabled' : ''}
-          placeholder="000.000.000-00">
-      </div>
-      <div class="fg">
-        <label>Serial do Aparelho *</label>
-        <input type="text" class="fc" id="f-serial"
-          value="${o ? o.device_serial : ''}" ${o ? 'disabled' : ''}
-          placeholder="Número de Série">
-      </div>
-    </div>
-    <div class="frow">
-      <div class="fg">
-        <label>Técnico Responsável *</label>
-        <input type="text" class="fc" id="f-tecnico"
-          value="${o ? o.technician : ''}" placeholder="Nome do Técnico">
-      </div>
-      <div class="fg">
-        <label>Data de Abertura *</label>
-        <input type="date" class="fc" id="f-data"
-          value="${o ? o.opening_date.split('T')[0] : new Date().toISOString().split('T')[0]}">
-      </div>
-    </div>
-    <div class="fg">
-      <label>Status</label>
-      <select class="fc" id="f-status">
-        <option value="A Realizar"   ${o && o.status === 'A Realizar'   ? 'selected' : ''}>A Realizar</option>
-        <option value="Em Andamento" ${o && o.status === 'Em Andamento' ? 'selected' : ''}>Em Andamento</option>
-        <option value="Finalizada"   ${o && o.status === 'Finalizada'   ? 'selected' : ''}>Finalizada</option>
-      </select>
-    </div>
-    <div class="d-divider"></div>
-    <div class="d-section"><i class="fas fa-wrench"></i> Descrição do Problema</div>
-    ${histHTML}`;
+function deviceOptions(customerId, selected) {
+  const list = devicesRef.filter((d) => !customerId || d.customer_id === customerId);
+  if (!list.length) return '<option value="">Nenhum equipamento para este cliente</option>';
+  return ['<option value="">Selecione o equipamento</option>']
+    .concat(list.map((d) =>
+      `<option value="${d.id}" ${d.id === selected ? 'selected' : ''}>${esc(d.type)} — ${esc(d.serial_number)}</option>`))
+    .join('');
 }
 
-// ── SAVE ──
+function bindClienteChange() {
+  const cli = document.getElementById('f-cliente');
+  if (!cli) return;
+  cli.addEventListener('change', () => {
+    document.getElementById('f-device').innerHTML = deviceOptions(cli.value, '');
+  });
+}
+
+function formHTML(o) {
+  const hoje = new Date().toISOString().slice(0, 10);
+  return `
+    <div class="d-section"><i class="fas fa-user"></i> Cliente e Equipamento</div>
+    <div class="fg"><label>Cliente *</label>
+      <select class="fc" id="f-cliente">
+        <option value="">Selecione o cliente</option>
+        ${customersRef.map((c) => `<option value="${c.id}" ${o && o.customer_id === c.id ? 'selected' : ''}>${esc(c.name)} — ${esc(c.cpf)}</option>`).join('')}
+      </select></div>
+    <div class="fg"><label>Equipamento *</label>
+      <select class="fc" id="f-device">${deviceOptions(o ? o.customer_id : '', o ? o.device_id : '')}</select></div>
+    <div class="d-divider"></div>
+    <div class="d-section"><i class="fas fa-clipboard-list"></i> Atendimento</div>
+    <div class="fg"><label>Data de abertura *</label>
+      <input type="date" class="fc" id="f-data" max="${hoje}" value="${o ? String(o.opening_date).slice(0, 10) : hoje}"></div>
+    <div class="fg"><label>Técnico responsável</label>
+      <select class="fc" id="f-tecnico">
+        <option value="">Atribuir depois</option>
+        ${techniciansRef.map((t) => `<option value="${t.id}" ${o && o.technician_id === t.id ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}
+      </select></div>
+    <div class="fg"><label>Status *</label>
+      <select class="fc" id="f-status">
+        ${STATUS.map((s) => `<option value="${s}" ${o && o.status === s ? 'selected' : ''}>${s}</option>`).join('')}
+      </select></div>
+    <div class="fg"><label>Defeito relatado * (mínimo 10 caracteres)</label>
+      <textarea class="fc" id="f-defeito" rows="4" placeholder="Descreva o problema informado pelo cliente...">${esc(o ? o.problem_description : '')}</textarea></div>
+    <div class="fg"><label>Solução aplicada</label>
+      <textarea class="fc" id="f-solucao" rows="4" placeholder="Preenchida durante o atendimento...">${esc(o && o.solution ? o.solution : '')}</textarea></div>`;
+}
+
 async function saveOS() {
-  if (!editingId) {
-    const cpfField = document.getElementById('f-cpf');
-    cpfField.value = maskCPF(cpfField.value);
-  }
-  const cpf      = editingId
-    ? orders.find(x => x.id === editingId).customer_cpf
-    : document.getElementById('f-cpf').value.trim();
-  const serial   = editingId
-    ? orders.find(x => x.id === editingId).device_serial
-    : document.getElementById('f-serial').value.trim();
-  const tecnico  = document.getElementById('f-tecnico').value.trim();
-  const data     = document.getElementById('f-data').value;
-  const status   = document.getElementById('f-status').value;
-  const novoRelato = document.getElementById('f-problema').value.trim();
+  const customerId = document.getElementById('f-cliente').value;
+  const deviceId = document.getElementById('f-device').value;
+  const openingDate = document.getElementById('f-data').value;
+  const technicianId = document.getElementById('f-tecnico').value;
+  const status = document.getElementById('f-status').value;
+  const problemDescription = document.getElementById('f-defeito').value.trim();
+  const solution = document.getElementById('f-solucao').value.trim();
 
-  if (!cpf || !serial || !tecnico || !data || !novoRelato) {
-    toast('Preencha todos os campos obrigatórios.', 'err'); return;
-  }
-  if (!editingId && !isValidCPF(cpf)) {
-    toast('CPF do cliente inválido. Confira os números digitados.', 'err'); return;
-  }
-  if (!editingId && !isValidSerial(serial)) {
-    toast('Serial do dispositivo inválido.', 'err'); return;
-  }
-  if (!isNonEmptyText(tecnico, 3)) {
-    toast('Informe o nome do técnico responsável (ao menos 3 caracteres).', 'err'); return;
-  }
-  if (!isValidPastOrTodayDate(data)) {
-    toast('Data de abertura inválida. Não pode ser uma data futura.', 'err'); return;
-  }
-  if (!isNonEmptyText(novoRelato, 10)) {
-    toast('Descreva o problema com pelo menos 10 caracteres.', 'err'); return;
-  }
+  if (!customerId) return toast('Selecione o cliente.', 'err');
+  if (!deviceId) return toast('Selecione o equipamento.', 'err');
+  if (!isValidPastOrTodayDate(openingDate)) return toast('Data de abertura inválida (não pode ser futura).', 'err');
+  if (problemDescription.length < 10) return toast('Descreva o defeito com ao menos 10 caracteres.', 'err');
+  if (status === 'Finalizada' && solution.length < 5) return toast('Descreva a solução para finalizar a O.S.', 'err');
 
-  let descricao = novoRelato;
-  if (editingId) {
-    const velho = orders.find(x => x.id === editingId).problem_description;
-    descricao = `${velho}\n--- Atualizado em ${new Date().toLocaleDateString('pt-BR')} ---\n${novoRelato}`;
-  }
-
-  const payload = {
-    customer_cpf: cpf, device_serial: serial,
-    technician: tecnico, opening_date: data,
-    problem_description: descricao, status
-  };
-
-  const method = editingId ? 'PUT' : 'POST';
-  const url    = editingId
-    ? `${API_URL}/service-orders/${editingId}`
-    : `${API_URL}/service-orders`;
-
+  const url = editingId ? `${API_URL}/service-orders/${editingId}` : `${API_URL}/service-orders`;
   try {
     const res = await authFetch(url, {
-      method,
+      method: editingId ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({ customerId, deviceId, openingDate, technicianId, status, problemDescription, solution }),
     });
-    if (res.ok) {
-      toast('Ordem de Serviço salva!');
-      closeDrawer();
-      fetchOS();
-    } else {
-      const err = await res.json();
-      toast(err.error || 'Erro ao salvar.', 'err');
-    }
-  } catch { toast('Erro de conexão.', 'err'); }
-}
-
-// ── DELETE ──
-async function deleteOS(id) {
-  if (isCliente()) return;
-  if (!confirm('Excluir esta Ordem de Serviço?')) return;
-  try {
-    await authFetch(`${API_URL}/service-orders/${id}`, { method: 'DELETE' });
-    toast('O.S. excluída.');
+    const dados = await res.json();
+    if (!res.ok) return toast(dados.error || 'Erro ao salvar.', 'err');
+    toast('Ordem de serviço salva!');
     closeDrawer();
-    fetchOS();
-  } catch { toast('Erro ao excluir.', 'err'); }
+    fetchDados();
+  } catch {
+    toast('Erro de conexão.', 'err');
+  }
 }
 
-// ── INIT ──
+async function deleteOS(id) {
+  if (!confirm('Excluir esta ordem de serviço?')) return;
+  try {
+    const res = await authFetch(`${API_URL}/service-orders/${id}`, { method: 'DELETE' });
+    const dados = await res.json();
+    if (!res.ok) return toast(dados.error || 'Erro ao excluir.', 'err');
+    toast('Ordem de serviço excluída.');
+    closeDrawer();
+    fetchDados();
+  } catch {
+    toast('Erro de conexão.', 'err');
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-  // Esconde o botão "Nova O.S." se o usuário for cliente
+  if (!getSession()) return;
+  fetchDados();
   const btnNew = document.getElementById('btn-new');
-  if (isCliente() && btnNew) btnNew.style.display = 'none';
-
-  fetchOS();
-
   if (btnNew) btnNew.addEventListener('click', newOS);
   document.getElementById('search-input').addEventListener('input', applyFilter);
   document.getElementById('filter-status').addEventListener('change', applyFilter);
-
   document.getElementById('btn-sort').addEventListener('click', () => {
     sortDir *= -1;
     const btn = document.getElementById('btn-sort');
     btn.classList.toggle('on');
     btn.innerHTML = sortDir === -1
       ? '<i class="fas fa-sort-numeric-down"></i> Mais recentes'
-      : '<i class="fas fa-sort-numeric-up"></i> Mais antigos';
+      : '<i class="fas fa-sort-numeric-up"></i> Mais antigas';
     applyFilter();
   });
 });
