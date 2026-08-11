@@ -10,29 +10,47 @@
 
 -- Módulos do produto
 INSERT INTO modules (code, name, description, core) VALUES
-  ('customers', 'Clientes',           'Cadastro de clientes da assistência técnica.', TRUE),
-  ('devices',   'Equipamentos',       'Cadastro de equipamentos vinculados aos clientes.', TRUE),
-  ('orders',    'Ordens de Serviço',  'Abertura e acompanhamento das ordens de serviço.', TRUE),
-  ('users',     'Gestão de Equipe',   'Cadastro de usuários e perfis de acesso.', TRUE),
-  ('reports',   'Relatórios',         'Indicadores gerenciais de atendimento.', FALSE)
+  ('customers',     'Clientes',            'Cadastro de clientes da assistência técnica.', TRUE),
+  ('devices',       'Equipamentos',        'Cadastro de equipamentos vinculados aos clientes.', TRUE),
+  ('orders',        'Ordens de Serviço',   'Abertura e acompanhamento das ordens de serviço.', TRUE),
+  ('users',         'Gestão de Equipe',    'Cadastro de usuários e perfis de acesso.', TRUE),
+  ('reports',       'Relatórios',          'Indicadores gerenciais de atendimento.', FALSE),
+  ('sla',           'Gestão de SLA',       'Prazos de atendimento e acompanhamento de atrasos.', FALSE),
+  ('schedule',      'Agenda Técnica',      'Programação de atendimentos por técnico.', FALSE),
+  ('notifications', 'Notificações',        'Avisos automáticos de andamento e vencimento de prazo.', FALSE),
+  ('inventory',     'Estoque de Peças',    'Controle de peças utilizadas nos reparos.', FALSE),
+  ('finance',       'Financeiro',          'Orçamentos, faturamento e recebimentos das O.S.', FALSE),
+  ('portal',        'Portal do Cliente',   'Consulta pública do andamento da ordem de serviço.', FALSE),
+  ('audit',         'Auditoria e Logs',    'Registro de ações dos usuários para conformidade (LGPD).', FALSE)
 ON CONFLICT (code) DO NOTHING;
 
 -- Planos comercializados
 INSERT INTO plans (code, name, description, monthly_price, max_users) VALUES
-  ('essencial',  'Essencial',  'Para assistências que estão começando.',          0.00,   3),
-  ('profissional','Profissional','Equipe completa e relatórios gerenciais.',      149.90, 15),
-  ('avancado',   'Avançado',   'Operações com múltiplas equipes técnicas.',       299.90, 50)
+  ('essencial',    'Essencial',    'Para assistências que estão começando.',            0.00,   3),
+  ('profissional', 'Profissional', 'Equipe completa, SLA e relatórios gerenciais.',   149.90,  15),
+  ('empresarial',  'Empresarial',  'Todos os módulos, para operações de grande porte.', 299.90, 50)
 ON CONFLICT (code) DO NOTHING;
 
 -- Módulos incluídos em cada plano
+DELETE FROM plan_modules;
+
 INSERT INTO plan_modules (plan_id, module_id)
 SELECT p.id, m.id FROM plans p, modules m
- WHERE p.code = 'essencial' AND m.code IN ('customers', 'devices', 'orders', 'users')
+ WHERE p.code = 'essencial'
+   AND m.code IN ('customers', 'devices', 'orders', 'users')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO plan_modules (plan_id, module_id)
 SELECT p.id, m.id FROM plans p, modules m
- WHERE p.code IN ('profissional', 'avancado')
+ WHERE p.code = 'profissional'
+   AND m.code IN ('customers', 'devices', 'orders', 'users',
+                  'reports', 'sla', 'schedule', 'notifications')
+ON CONFLICT DO NOTHING;
+
+-- Empresarial: todos os módulos (sempre mais que o Profissional)
+INSERT INTO plan_modules (plan_id, module_id)
+SELECT p.id, m.id FROM plans p, modules m
+ WHERE p.code = 'empresarial'
 ON CONFLICT DO NOTHING;
 
 -- Administrador da Plataforma (sem tenant_id)

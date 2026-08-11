@@ -91,6 +91,8 @@ async function login(req, res) {
 
   if (!email || !password) throw new AppError('Informe e-mail e senha.');
 
+  await model.expireSuspendedTenants();
+
   const user = await model.findUserByEmail(email);
   // Mensagem genérica: não revela se o e-mail existe.
   const invalid = new AppError('E-mail ou senha inválidos.', 401);

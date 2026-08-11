@@ -3,6 +3,8 @@ const model = require('./serviceOrder.model');
 const customerModel = require('../customers/customer.model');
 const deviceModel = require('../devices/device.model');
 const userModel = require('../users/user.model');
+const companyModel = require('../company/company.model');
+const { parseSlaHours } = require('../company/company.controller');
 const { AppError } = require('../../shared/http');
 const { ROLES, OS_STATUS } = require('../../config/roles');
 const { isNonEmptyText, isValidUUID, isValidPastOrTodayDate } = require('../../shared/validators');
@@ -54,7 +56,7 @@ async function show(req, res) {
   res.json(await loadOrder(req));
 }
 
-async function validatePayload(req) {
+async function validatePayload(req, current = null) {
   const customerId = String(req.body.customerId || '').trim();
   const deviceId = String(req.body.deviceId || '').trim();
   const technicianId = String(req.body.technicianId || '').trim() || null;
@@ -62,6 +64,15 @@ async function validatePayload(req) {
   const problemDescription = String(req.body.problemDescription || '').trim();
   const solution = String(req.body.solution || '').trim() || null;
   const status = String(req.body.status || 'A Realizar').trim();
+
+  // SLA: usa o prazo padrão da empresa (48h de fábrica) quando não informado.
+  let slaHours;
+  if (req.body.slaHours === undefined || req.body.slaHours === null || req.body.slaHours === '') {
+    const settings = await companyModel.findSettings(req.tenantId);
+    slaHours = (current && Number(current.sla_hours)) || Number(settings && settings.sla_hours) || 48;
+  } else {
+    slaHours = parseSlaHours(req.body.slaHours);
+  }
 
   if (!isValidUUID(customerId)) throw new AppError('Selecione o cliente da ordem de serviço.');
   if (!isValidUUID(deviceId)) throw new AppError('Selecione o equipamento da ordem de serviço.');
@@ -84,7 +95,7 @@ async function validatePayload(req) {
     }
   }
 
-  return { customerId, deviceId, technicianId, openingDate, problemDescription, solution, status };
+  return { customerId, deviceId, technicianId, openingDate, problemDescription, solution, status, slaHours };
 }
 
 async function store(req, res) {
@@ -94,8 +105,8 @@ async function store(req, res) {
 }
 
 async function update(req, res) {
-  await loadOrder(req);
-  const data = await validatePayload(req);
+  const current = await loadOrder(req);
+  const data = await validatePayload(req, current);
   await model.update(req.tenantId, req.params.id, data);
   res.json(await model.findById(req.tenantId, req.params.id));
 }
@@ -115,10 +126,18 @@ async function updateStatus(req, res) {
   res.json(await model.findById(req.tenantId, req.params.id));
 }
 
+// PATCH /:id/sla — ajuste do prazo pelo Administrador da Empresa.
+async function updateSla(req, res) {
+  await loadOrder(req);
+  const slaHours = parseSlaHours(req.body.slaHours);
+  await model.updateSla(req.tenantId, req.params.id, slaHours);
+  res.json(await model.findById(req.tenantId, req.params.id));
+}
+
 async function destroy(req, res) {
   const removed = await model.remove(req.tenantId, req.params.id);
   if (!removed) throw new AppError('Ordem de serviço não encontrada.', 404);
   res.json({ message: 'Ordem de serviço excluída com sucesso.' });
 }
 
-module.exports = { index, summary, show, store, update, updateStatus, destroy };
+module.exports = { index, summary, show, store, update, updateStatus, updateSla, destroy };

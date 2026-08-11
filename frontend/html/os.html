@@ -35,9 +35,14 @@
         <h1 class="page-title">Ordens de Serviço</h1>
         <p class="page-sub" id="sub-count">Carregando...</p>
       </div>
-      <button class="btn btn-primary" id="btn-new" data-requires="orders">
-        <i class="fas fa-plus"></i> Nova O.S.
-      </button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-ghost" id="btn-sla" data-requires="companySettings">
+          <i class="fas fa-stopwatch"></i> SLA padrão
+        </button>
+        <button class="btn btn-primary" id="btn-new" data-requires="orders">
+          <i class="fas fa-plus"></i> Nova O.S.
+        </button>
+      </div>
     </div>
 
     <div class="toolbar">
@@ -68,6 +73,7 @@
               <th>Equipamento</th>
               <th>Técnico</th>
               <th>Data</th>
+              <th>Prazo (SLA)</th>
               <th>Status</th>
               <th></th>
             </tr>

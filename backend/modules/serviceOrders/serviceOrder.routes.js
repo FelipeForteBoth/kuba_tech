@@ -27,6 +27,9 @@ router.patch(
   asyncHandler(controller.updateStatus),
 );
 
+// Prazo (SLA): apenas o Administrador da Empresa ajusta.
+router.patch('/:id/sla', authorize(ROLES.COMPANY_ADMIN), asyncHandler(controller.updateSla));
+
 router.delete('/:id', authorize(ROLES.COMPANY_ADMIN), asyncHandler(controller.destroy));
 
 module.exports = router;

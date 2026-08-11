@@ -78,8 +78,42 @@ CREATE TABLE tenants (
     phone        VARCHAR(15),
     plan_id      UUID         REFERENCES plans(id) ON DELETE SET NULL,
     status       tenant_status NOT NULL DEFAULT 'active',
+    suspended_at TIMESTAMPTZ,                     -- início da suspensão da assinatura
+    sla_hours    INTEGER      NOT NULL DEFAULT 48 CHECK (sla_hours BETWEEN 1 AND 8760),
     created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
+
+-- Assinatura suspensa há mais de 2 meses é cancelada automaticamente.
+CREATE OR REPLACE FUNCTION expire_suspended_tenants()
+RETURNS INTEGER AS $$
+DECLARE
+    afetadas INTEGER;
+BEGIN
+    UPDATE tenants
+       SET status = 'canceled'
+     WHERE status = 'suspended'
+       AND suspended_at IS NOT NULL
+       AND suspended_at <= NOW() - INTERVAL '2 months';
+    GET DIAGNOSTICS afetadas = ROW_COUNT;
+    RETURN afetadas;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION track_tenant_suspension()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.status = 'suspended' AND (OLD.status IS DISTINCT FROM 'suspended') THEN
+        NEW.suspended_at = NOW();
+    ELSIF NEW.status <> 'suspended' THEN
+        NEW.suspended_at = NULL;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_tenant_suspension
+BEFORE UPDATE ON tenants
+FOR EACH ROW EXECUTE FUNCTION track_tenant_suspension();
 
 -- Módulos efetivamente habilitados para cada empresa
 CREATE TABLE tenant_modules (
@@ -156,6 +190,7 @@ CREATE TABLE service_orders (
     problem_description TEXT        NOT NULL,
     solution            TEXT,
     status              os_status   NOT NULL DEFAULT 'A Realizar',
+    sla_hours           INTEGER     NOT NULL DEFAULT 48 CHECK (sla_hours BETWEEN 1 AND 8760),
     created_by          UUID        REFERENCES users(id) ON DELETE SET NULL,
     closed_at           TIMESTAMPTZ,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),

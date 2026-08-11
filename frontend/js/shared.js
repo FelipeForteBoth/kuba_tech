@@ -88,6 +88,7 @@ const WRITE_ACCESS = {
   orders: ['company_admin', 'attendant'],
   orderStatus: ['company_admin', 'attendant', 'technician'],
   users: ['company_admin'],
+  companySettings: ['company_admin'],
   tenants: ['platform_admin'],
 };
 

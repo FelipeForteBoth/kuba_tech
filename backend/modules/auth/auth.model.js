@@ -1,6 +1,16 @@
 // Módulo Auth — camada de acesso a dados.
 const db = require('../../config/database');
 
+/** Cancela assinaturas suspensas há mais de 2 meses (regra de negócio SaaS). */
+const expireSuspendedTenants = () =>
+  db.run(
+    `UPDATE tenants SET status = 'canceled'
+      WHERE status = 'suspended'
+        AND suspended_at IS NOT NULL
+        AND suspended_at <= NOW() - INTERVAL '2 months'`,
+    [],
+  );
+
 const findUserByEmail = (email) =>
   db.one(
     `SELECT u.*, t.status AS tenant_status, t.company_name
@@ -68,6 +78,7 @@ async function createCompanyWithAdmin({ company, admin, planId }) {
 }
 
 module.exports = {
+  expireSuspendedTenants,
   findUserByEmail,
   findUserById,
   registerLogin,

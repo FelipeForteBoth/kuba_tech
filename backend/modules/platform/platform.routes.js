@@ -12,9 +12,12 @@ router.use(authenticate, authorize(ROLES.PLATFORM_ADMIN));
 
 router.get('/metrics', asyncHandler(controller.metrics));
 router.get('/plans', asyncHandler(controller.plans));
+router.get('/modules', asyncHandler(controller.modules));
 router.get('/tenants', asyncHandler(controller.tenants));
+router.post('/tenants', asyncHandler(controller.store));
 router.get('/tenants/:id', asyncHandler(controller.tenant));
 router.patch('/tenants/:id/status', asyncHandler(controller.updateStatus));
 router.patch('/tenants/:id/plan', asyncHandler(controller.changePlan));
+router.delete('/tenants/:id', asyncHandler(controller.destroy));
 
 module.exports = router;
