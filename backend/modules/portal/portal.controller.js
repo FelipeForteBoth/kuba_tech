@@ -1,23 +1,47 @@
-// Módulo Plataforma — rotas (exclusivas do Administrador da Plataforma).
-const express = require('express');
-const controller = require('./platform.controller');
-const { authenticate } = require('../../middleware/auth');
-const { authorize } = require('../../middleware/rbac');
-const { asyncHandler } = require('../../shared/http');
-const { ROLES } = require('../../config/roles');
+// Módulo Portal do Cliente — consulta pública (sem login) do andamento da O.S.
+const model = require('./portal.model');
+const { AppError } = require('../../shared/http');
+const { onlyDigits } = require('../../shared/validators');
 
-const router = express.Router();
+const STATUS_STEPS = ['A Realizar', 'Em Andamento', 'Finalizada'];
 
-router.use(authenticate, authorize(ROLES.PLATFORM_ADMIN));
+// POST /api/portal/consulta { numero, cpf }
+async function lookup(req, res) {
+  const numero = Number(String(req.body.numero || '').replace(/\D/g, ''));
+  const cpf = onlyDigits(String(req.body.cpf || ''));
 
-router.get('/metrics', asyncHandler(controller.metrics));
-router.get('/plans', asyncHandler(controller.plans));
-router.get('/modules', asyncHandler(controller.modules));
-router.get('/tenants', asyncHandler(controller.tenants));
-router.post('/tenants', asyncHandler(controller.store));
-router.get('/tenants/:id', asyncHandler(controller.tenant));
-router.patch('/tenants/:id/status', asyncHandler(controller.updateStatus));
-router.patch('/tenants/:id/plan', asyncHandler(controller.changePlan));
-router.delete('/tenants/:id', asyncHandler(controller.destroy));
+  if (!Number.isInteger(numero) || numero <= 0) throw new AppError('Informe o número da ordem de serviço.');
+  if (cpf.length !== 11) throw new AppError('Informe o CPF do cliente (11 números).');
 
-module.exports = router;
+  const order = await model.findPublicOrder(numero, cpf);
+  // Mensagem única: não revela se a O.S. existe para outro CPF (LGPD).
+  if (!order) throw new AppError('Nenhuma ordem de serviço encontrada para os dados informados.', 404);
+
+  const etapa = STATUS_STEPS.indexOf(order.status);
+  res.json({
+    numero: order.number,
+    status: order.status,
+    etapa: etapa < 0 ? 0 : etapa + 1,
+    totalEtapas: STATUS_STEPS.length,
+    abertura: order.opening_date,
+    previsao: order.sla_due_at,
+    agendamento: order.scheduled_at,
+    encerramento: order.closed_at,
+    atualizadoEm: order.updated_at,
+    atrasada:
+      !order.closed_at &&
+      !['Finalizada', 'Cancelada'].includes(order.status) &&
+      new Date(order.sla_due_at).getTime() < Date.now(),
+    cliente: order.customer_name,
+    equipamento: [order.device_type, order.device_brand, order.device_model].filter(Boolean).join(' '),
+    defeito: order.problem_description,
+    solucao: order.solution || null,
+    empresa: {
+      nome: order.company_name,
+      telefone: order.company_phone,
+      email: order.company_email,
+    },
+  });
+}
+
+module.exports = { lookup };
