@@ -2,7 +2,7 @@
 const model = require('./schedule.model');
 const userModel = require('../users/user.model');
 const { AppError } = require('../../shared/http');
-const { ROLES } = require('../../config/roles');
+const { ROLES, SCHEDULE_MIN_MINUTES, SCHEDULE_MAX_DAYS } = require('../../config/roles');
 const { isValidUUID } = require('../../shared/validators');
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -23,6 +23,7 @@ function parseRange(query) {
 
 // GET /api/schedule?from=&to=
 async function index(req, res) {
+  await model.startDueOrders(req.tenantId);
   const { from, to } = parseRange(req.query);
   const technicianId = technicianFilter(req.user);
 
@@ -39,6 +40,7 @@ async function index(req, res) {
 async function update(req, res) {
   if (!isValidUUID(req.params.id)) throw new AppError('Identificador inválido.');
 
+  await model.startDueOrders(req.tenantId);
   const order = await model.findById(req.tenantId, req.params.id);
   if (!order) throw new AppError('Ordem de serviço não encontrada.', 404);
 
@@ -48,6 +50,10 @@ async function update(req, res) {
     if (!DATETIME_RE.test(raw)) throw new AppError('Informe a data e a hora do atendimento.');
     scheduledAt = new Date(raw);
     if (Number.isNaN(scheduledAt.getTime())) throw new AppError('Data do atendimento inválida.');
+    const min = new Date(Date.now() + SCHEDULE_MIN_MINUTES * 60000);
+    const max = new Date(Date.now() + SCHEDULE_MAX_DAYS * 86400000);
+    if (scheduledAt < min) throw new AppError('O agendamento deve ser para, no mínimo, o próximo minuto.');
+    if (scheduledAt > max) throw new AppError('O agendamento deve ser para, no máximo, 1 mês à frente.');
   }
 
   const technicianId = String(req.body.technicianId || '').trim() || null;

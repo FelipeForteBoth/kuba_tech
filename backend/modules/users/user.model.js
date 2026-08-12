@@ -15,6 +15,20 @@ const listByRole = (tenantId, roles) =>
     [tenantId, roles],
   );
 
+/**
+ * Lista para a abertura de O.S.: TODOS os usuários com perfil Técnico da
+ * empresa (ativos e inativos são retornados, com a flag `active`), somados
+ * aos administradores ativos, que também podem executar atendimentos.
+ */
+const listTechnicians = (tenantId) =>
+  db.all(
+    `SELECT ${PUBLIC_COLUMNS} FROM users
+      WHERE tenant_id = $1
+        AND (role = 'technician' OR (role = 'company_admin' AND active = TRUE))
+      ORDER BY (role = 'technician') DESC, name`,
+    [tenantId],
+  );
+
 const findById = (tenantId, id) =>
   db.one(`SELECT ${PUBLIC_COLUMNS} FROM users WHERE tenant_id = $1 AND id = $2`, [tenantId, id]);
 
@@ -56,6 +70,7 @@ const countUsers = (tenantId) =>
 module.exports = {
   list,
   listByRole,
+  listTechnicians,
   findById,
   findByEmail,
   create,

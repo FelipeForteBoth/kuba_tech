@@ -9,7 +9,7 @@ async function loadStats() {
     const s = await res.json();
     document.getElementById('s-clientes').textContent = s.clientes;
     document.getElementById('s-devices').textContent = s.equipamentos;
-    document.getElementById('s-todo').textContent = s.ordens['A Realizar'];
+    document.getElementById('s-todo').textContent = s.ordens['Aguardando Agendamento'];
     document.getElementById('s-prog').textContent = s.ordens['Em Andamento'];
     document.getElementById('s-done').textContent = s.ordens.Finalizada;
   } catch (e) {
@@ -37,7 +37,13 @@ async function loadData() {
 }
 
 function badgeStatus(s) {
-  const cls = { 'A Realizar': 'badge-todo', 'Em Andamento': 'badge-prog', Finalizada: 'badge-done', Cancelada: 'badge-del' }[s] || 'badge-todo';
+  const cls = {
+    'Aguardando Agendamento': 'badge-todo',
+    Agendada: 'badge-prog',
+    'Em Andamento': 'badge-prog',
+    Finalizada: 'badge-done',
+    Cancelada: 'badge-del',
+  }[s] || 'badge-todo';
   return `<span class="badge ${cls}">${esc(s)}</span>`;
 }
 

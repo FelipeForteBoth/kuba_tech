@@ -6,7 +6,22 @@ let techniciansRef = [];
 let sortDir = -1;
 let editingId = null;
 
-const STATUS = ['A Realizar', 'Em Andamento', 'Finalizada', 'Cancelada'];
+const STATUS = ['Aguardando Agendamento', 'Agendada', 'Em Andamento', 'Finalizada', 'Cancelada'];
+
+// Status que o usuário pode aplicar manualmente no andamento.
+const STATUS_ANDAMENTO = ['Em Andamento', 'Finalizada', 'Cancelada'];
+
+// Data de hoje no fuso do navegador (evita o "amanhã" do horário UTC).
+function hojeLocal(d = new Date()) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+// Valor para <input type="datetime-local">
+function paraInputDateTime(d) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${hojeLocal(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 // SLA padrão da empresa (horas) — configurável pelo Administrador da Empresa.
 let slaPadrao = 48;
@@ -22,13 +37,20 @@ function fmtDateTime(v) {
 
 /** Situação do prazo: dentro do SLA, próximo do vencimento ou atrasada. */
 function slaInfo(o) {
-  const horas = Number(o.sla_hours) || slaPadrao;
-  if (!o.sla_due_at) return { horas, texto: `${horas}h`, cls: 'badge-todo' };
+  const kind = o.sla_kind || 'servico';
+  const horas = kind === 'agendamento' ? Number(o.scheduling_sla_hours) || 24 : Number(o.sla_hours) || slaPadrao;
+  const rotulo = kind === 'agendamento' ? 'SLA de agendamento' : 'SLA de serviço';
+
+  if (o.status === 'Agendada') {
+    return { horas, rotulo: 'Agendada', texto: `Agendada ${fmtDateTime(o.scheduled_at)}`, cls: 'badge-prog' };
+  }
+  if (SLA_ENCERRADAS.includes(o.status)) return { horas, rotulo, texto: `${horas}h`, cls: 'badge-done' };
+  if (!o.sla_due_at) return { horas, rotulo, texto: `${horas}h`, cls: 'badge-todo' };
+
   const restante = (new Date(o.sla_due_at) - new Date()) / 3600000;
-  if (SLA_ENCERRADAS.includes(o.status)) return { horas, texto: `${horas}h`, cls: 'badge-done' };
-  if (restante < 0) return { horas, texto: `Atrasada ${Math.abs(Math.round(restante))}h`, cls: 'badge-del' };
-  if (restante <= 8) return { horas, texto: `Vence em ${Math.round(restante)}h`, cls: 'badge-prog' };
-  return { horas, texto: `${Math.round(restante)}h restantes`, cls: 'badge-todo' };
+  if (restante < 0) return { horas, rotulo, texto: `Atrasada ${Math.abs(Math.round(restante))}h`, cls: 'badge-del' };
+  if (restante <= 8) return { horas, rotulo, texto: `Vence em ${Math.round(restante)}h`, cls: 'badge-prog' };
+  return { horas, rotulo, texto: `${Math.round(restante)}h restantes`, cls: 'badge-todo' };
 }
 
 function fmtDate(d) {
@@ -39,7 +61,13 @@ function fmtDate(d) {
 }
 
 function badgeStatus(s) {
-  const cls = { 'A Realizar': 'badge-todo', 'Em Andamento': 'badge-prog', Finalizada: 'badge-done', Cancelada: 'badge-del' }[s] || 'badge-todo';
+  const cls = {
+    'Aguardando Agendamento': 'badge-todo',
+    Agendada: 'badge-prog',
+    'Em Andamento': 'badge-prog',
+    Finalizada: 'badge-done',
+    Cancelada: 'badge-del',
+  }[s] || 'badge-todo';
   return `<span class="badge ${cls}">${esc(s)}</span>`;
 }
 
@@ -93,7 +121,7 @@ function render(data) {
       <td class="td2">${esc(o.technician_name || 'Não atribuído')}</td>
       <td class="td2">${fmtDate(o.opening_date)}</td>
       <td class="td2"><span class="badge ${slaInfo(o).cls}">${esc(slaInfo(o).texto)}</span><br>
-        <span class="stat-lbl">${fmtDateTime(o.sla_due_at)}</span></td>
+        <span class="stat-lbl">${esc(slaInfo(o).rotulo)}${o.sla_due_at ? ` — ${fmtDateTime(o.sla_due_at)}` : ''}</span></td>
       <td>${badgeStatus(o.status)}</td>
       <td><i class="fas fa-chevron-right rarrow"></i></td>
     </tr>`).join('');
@@ -122,9 +150,13 @@ function viewOS(id) {
     <div class="d-section"><i class="fas fa-info-circle"></i> Situação</div>
     <div class="d-field"><div class="d-lbl">Status</div><div class="d-val">${badgeStatus(o.status)}</div></div>
     <div class="d-field"><div class="d-lbl">Abertura</div><div class="d-val">${fmtDate(o.opening_date)}</div></div>
-    <div class="d-field"><div class="d-lbl">SLA</div><div class="d-val">${Number(o.sla_hours) || slaPadrao} horas</div></div>
-    <div class="d-field"><div class="d-lbl">Prazo de atendimento</div>
-      <div class="d-val">${fmtDateTime(o.sla_due_at)} — <span class="badge ${slaInfo(o).cls}">${esc(slaInfo(o).texto)}</span></div></div>
+    <div class="d-field"><div class="d-lbl">Agendamento</div>
+      <div class="d-val">${o.scheduled_at ? fmtDateTime(o.scheduled_at) : 'Ainda não agendada'}</div></div>
+    <div class="d-field"><div class="d-lbl">SLA de agendamento</div><div class="d-val">${Number(o.scheduling_sla_hours) || 24} horas</div></div>
+    <div class="d-field"><div class="d-lbl">SLA de serviço</div><div class="d-val">${Number(o.sla_hours) || slaPadrao} horas</div></div>
+    <div class="d-field"><div class="d-lbl">Prazo vigente</div>
+      <div class="d-val">${esc(slaInfo(o).rotulo)}: ${o.sla_due_at ? fmtDateTime(o.sla_due_at) : '—'}
+        <span class="badge ${slaInfo(o).cls}">${esc(slaInfo(o).texto)}</span></div></div>
     <div class="d-field"><div class="d-lbl">Técnico Responsável</div><div class="d-val">${esc(o.technician_name || 'Não atribuído')}</div></div>
     <div class="d-field"><div class="d-lbl">Aberta por</div><div class="d-val">${esc(o.created_by_name || '—')}</div></div>
     <div class="d-divider"></div>
@@ -143,6 +175,9 @@ function viewOS(id) {
 
   const acoes = [];
   if (canDelete()) acoes.push(`<button class="btn btn-del btn-sm" onclick="deleteOS('${o.id}')"><i class="fas fa-trash"></i> Excluir</button>`);
+  if (can('orderStatus') && !['Finalizada', 'Cancelada'].includes(o.status)) {
+    acoes.push(`<button class="btn btn-ghost btn-sm" onclick="agendarOS('${o.id}')"><i class="fas fa-calendar-plus"></i> ${o.scheduled_at ? 'Reagendar' : 'Agendar'}</button>`);
+  }
   if (can('orderStatus')) acoes.push(`<button class="btn btn-ghost btn-sm" onclick="statusOS('${o.id}')"><i class="fas fa-sync"></i> Andamento</button>`);
   if (can('orders')) acoes.push(`<button class="btn btn-primary btn-sm" onclick="editOS('${o.id}')"><i class="fas fa-edit"></i> Editar</button>`);
   document.getElementById('drawer-ft').innerHTML = acoes.join('');
@@ -159,8 +194,11 @@ function statusOS(id) {
     <div class="d-section"><i class="fas fa-sync"></i> Andamento do Serviço</div>
     <div class="fg"><label>Status *</label>
       <select class="fc" id="f-status">
-        ${STATUS.map((s) => `<option value="${s}" ${s === o.status ? 'selected' : ''}>${s}</option>`).join('')}
+        ${STATUS_ANDAMENTO.map((s) => `<option value="${s}" ${s === o.status ? 'selected' : ''}>${s}</option>`).join('')}
       </select></div>
+    ${o.status === 'Aguardando Agendamento'
+      ? '<p class="stat-lbl">Esta O.S. ainda não foi agendada — só é possível cancelá-la até que o atendimento seja programado.</p>'
+      : ''}
     <div class="fg"><label>Solução aplicada (obrigatória ao finalizar)</label>
       <textarea class="fc" id="f-solucao" rows="5" placeholder="Descreva o serviço executado...">${esc(o.solution || '')}</textarea></div>`;
   document.getElementById('drawer-ft').innerHTML = `
@@ -170,7 +208,8 @@ function statusOS(id) {
 }
 
 async function saveStatus(id) {
-  const status = document.getElementById('f-status').value;
+  const statusField = document.getElementById('f-status');
+  const status = statusField ? statusField.value : undefined;
   const solution = document.getElementById('f-solucao').value.trim();
   if (status === 'Finalizada' && solution.length < 5) {
     return toast('Descreva o serviço executado para finalizar a O.S.', 'err');
@@ -236,7 +275,7 @@ function bindClienteChange() {
 }
 
 function formHTML(o) {
-  const hoje = new Date().toISOString().slice(0, 10);
+  const hoje = hojeLocal();
   return `
     <div class="d-section"><i class="fas fa-user"></i> Cliente e Equipamento</div>
     <div class="fg"><label>Cliente *</label>
@@ -253,13 +292,17 @@ function formHTML(o) {
     <div class="fg"><label>Técnico responsável</label>
       <select class="fc" id="f-tecnico">
         <option value="">Atribuir depois</option>
-        ${techniciansRef.map((t) => `<option value="${t.id}" ${o && o.technician_id === t.id ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}
+        ${techniciansRef.map((t) => `<option value="${t.id}" ${o && o.technician_id === t.id ? 'selected' : ''}>${esc(t.name)}${t.active === false ? ' (inativo)' : ''}</option>`).join('')}
       </select></div>
-    <div class="fg"><label>Status *</label>
+    ${o
+      ? `<div class="fg"><label>Status *</label>
       <select class="fc" id="f-status">
-        ${STATUS.map((s) => `<option value="${s}" ${o && o.status === s ? 'selected' : ''}>${s}</option>`).join('')}
-      </select></div>
-    <div class="fg"><label>Prazo de atendimento — SLA (horas)</label>
+        ${STATUS.map((s) => `<option value="${s}" ${o.status === s ? 'selected' : ''}>${s}</option>`).join('')}
+      </select></div>`
+      : `<div class="fg"><label>Status</label>
+      <input type="text" class="fc" value="Aguardando Agendamento" disabled>
+      <span class="stat-lbl">A O.S. nasce aguardando agendamento (SLA de agendamento de 24 horas) e só avança após ser agendada.</span></div>`}
+    <div class="fg"><label>Prazo de serviço — SLA (horas)</label>
       <input type="number" class="fc" id="f-sla" min="1" max="8760"
         value="${o && o.sla_hours ? o.sla_hours : slaPadrao}"
         ${can('companySettings') ? '' : 'disabled'}>
@@ -275,7 +318,8 @@ async function saveOS() {
   const deviceId = document.getElementById('f-device').value;
   const openingDate = document.getElementById('f-data').value;
   const technicianId = document.getElementById('f-tecnico').value;
-  const status = document.getElementById('f-status').value;
+  const statusField = document.getElementById('f-status');
+  const status = statusField ? statusField.value : undefined;
   const problemDescription = document.getElementById('f-defeito').value.trim();
   const solution = document.getElementById('f-solucao').value.trim();
   const slaField = document.getElementById('f-sla');
@@ -319,6 +363,72 @@ async function deleteOS(id) {
   } catch {
     toast('Erro de conexão.', 'err');
   }
+}
+
+// ── Agendamento do atendimento ──
+function agendarOS(id) {
+  const o = orders.find((x) => x.id === id);
+  if (!o) return;
+
+  const min = new Date(Date.now() + 60000);
+  const max = new Date(Date.now() + 30 * 86400000);
+
+  document.getElementById('drawer-title').textContent = `O.S. #${o.number}`;
+  document.getElementById('drawer-mode').textContent = 'Programação do atendimento';
+  document.getElementById('drawer-body').innerHTML = `
+    <div class="d-section"><i class="fas fa-calendar-days"></i> Agendamento</div>
+    <p class="stat-lbl">Escolha um horário entre o próximo minuto e 1 mês à frente.
+      Depois de agendada, a O.S. fica sem SLA até a hora marcada, quando entra automaticamente em andamento.</p>
+    <div class="fg"><label>Data e hora do atendimento *</label>
+      <input type="datetime-local" class="fc" id="f-agenda"
+        min="${paraInputDateTime(min)}" max="${paraInputDateTime(max)}"
+        value="${o.scheduled_at ? paraInputDateTime(new Date(o.scheduled_at)) : paraInputDateTime(min)}"></div>
+    <div class="fg"><label>Técnico responsável</label>
+      <select class="fc" id="f-agenda-tec">
+        <option value="">Manter atual (${esc(o.technician_name || 'sem técnico')})</option>
+        ${techniciansRef.map((t) => `<option value="${t.id}" ${o.technician_id === t.id ? 'selected' : ''}>${esc(t.name)}${t.active === false ? ' (inativo)' : ''}</option>`).join('')}
+      </select></div>`;
+
+  document.getElementById('drawer-ft').innerHTML = `
+    <button class="btn btn-ghost btn-sm" onclick="viewOS('${id}')">Cancelar</button>
+    ${o.scheduled_at ? `<button class="btn btn-del btn-sm" onclick="desagendarOS('${id}')"><i class="fas fa-calendar-xmark"></i> Desmarcar</button>` : ''}
+    <button class="btn btn-primary btn-sm" onclick="saveAgenda('${id}')"><i class="fas fa-check"></i> Agendar</button>`;
+  openDrawer();
+}
+
+async function enviarAgenda(id, body) {
+  try {
+    const res = await authFetch(`${API_URL}/service-orders/${id}/schedule`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const dados = await res.json();
+    if (!res.ok) return toast(dados.error || 'Não foi possível salvar a programação.', 'err');
+    toast('Agendamento atualizado!');
+    closeDrawer();
+    fetchDados();
+  } catch {
+    toast('Erro de conexão.', 'err');
+  }
+}
+
+function saveAgenda(id) {
+  const valor = document.getElementById('f-agenda').value;
+  const technicianId = document.getElementById('f-agenda-tec').value;
+  if (!valor) return toast('Informe a data e a hora do atendimento.', 'err');
+
+  const when = new Date(valor);
+  if (Number.isNaN(when.getTime())) return toast('Data do atendimento inválida.', 'err');
+  if (when <= new Date()) return toast('O agendamento deve ser para, no mínimo, o próximo minuto.', 'err');
+  if (when > new Date(Date.now() + 30 * 86400000)) return toast('O agendamento deve ser para, no máximo, 1 mês à frente.', 'err');
+
+  enviarAgenda(id, { scheduledAt: when.toISOString(), technicianId });
+}
+
+function desagendarOS(id) {
+  if (!confirm('Remover a programação e devolver a O.S. para a fila de agendamento?')) return;
+  enviarAgenda(id, { scheduledAt: '', clear: true });
 }
 
 // ── SLA padrão da empresa (Administrador da Empresa) ──

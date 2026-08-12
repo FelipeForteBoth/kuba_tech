@@ -18,7 +18,7 @@ async function index(req, res) {
 
 // Lista usada na abertura de O.S. para escolher o responsável técnico.
 async function technicians(req, res) {
-  res.json(await model.listByRole(req.tenantId, [ROLES.TECHNICIAN, ROLES.COMPANY_ADMIN]));
+  res.json(await model.listTechnicians(req.tenantId));
 }
 
 function roles(_req, res) {

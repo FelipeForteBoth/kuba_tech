@@ -6,7 +6,8 @@ const fmtDateTime = (v) => (v ? new Date(v).toLocaleString('pt-BR', { dateStyle:
 
 function badge(status) {
   const map = {
-    'A Realizar': 'badge-todo',
+    'Aguardando Agendamento': 'badge-todo',
+    Agendada: 'badge-prog',
     'Em Andamento': 'badge-prog',
     Finalizada: 'badge-done',
     Cancelada: 'badge-del',

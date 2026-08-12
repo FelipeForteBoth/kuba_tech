@@ -1,9 +1,29 @@
 // Módulo Ordens de Serviço — acesso a dados (filtrado por tenant_id).
 const db = require('../../config/database');
 
+// Regra de SLA por etapa:
+//  - Aguardando Agendamento -> SLA de agendamento (24h) a partir da abertura;
+//  - Agendada               -> sem SLA (apenas a data marcada);
+//  - Em Andamento/demais    -> SLA de serviço (48h) a partir do início real.
+const SLA_DUE_EXPR = `
+  CASE
+    WHEN so.status = 'Aguardando Agendamento'
+      THEN so.created_at + make_interval(hours => so.scheduling_sla_hours)
+    WHEN so.status = 'Agendada' THEN NULL
+    ELSE COALESCE(so.started_at, so.scheduled_at, so.created_at) + make_interval(hours => so.sla_hours)
+  END`;
+
+const SLA_KIND_EXPR = `
+  CASE
+    WHEN so.status = 'Aguardando Agendamento' THEN 'agendamento'
+    WHEN so.status = 'Agendada' THEN 'agendada'
+    ELSE 'servico'
+  END`;
+
 const BASE_SELECT = `
   SELECT so.*,
-         (so.created_at + make_interval(hours => so.sla_hours)) AS sla_due_at,
+         ${SLA_DUE_EXPR} AS sla_due_at,
+         ${SLA_KIND_EXPR} AS sla_kind,
          c.name  AS customer_name,  c.cpf   AS customer_cpf,
          d.serial_number, d.type AS device_type, d.brand AS device_brand, d.model AS device_model,
          t.name  AS technician_name,
@@ -19,6 +39,19 @@ LEFT JOIN users     u ON u.id = so.created_by
  * Lista as ordens de serviço da empresa.
  * O parâmetro technicianId restringe o resultado às O.S. do técnico logado.
  */
+/**
+ * Vira automaticamente para "Em Andamento" toda O.S. agendada cuja hora chegou,
+ * iniciando nesse instante o SLA de serviço.
+ */
+const startDueOrders = (tenantId) =>
+  db.run(
+    `UPDATE service_orders
+        SET status = 'Em Andamento',
+            started_at = COALESCE(started_at, scheduled_at, NOW())
+      WHERE tenant_id = $1 AND status = 'Agendada' AND scheduled_at <= NOW()`,
+    [tenantId],
+  );
+
 const list = (tenantId, { search, status, technicianId } = {}) => {
   const params = [tenantId];
   let sql = `${BASE_SELECT} WHERE so.tenant_id = $1`;
@@ -84,9 +117,33 @@ const update = (tenantId, id, data) =>
 /** Atualização restrita usada pelo Técnico: apenas andamento do serviço. */
 const updateProgress = (tenantId, id, { status, solution }) =>
   db.one(
-    `UPDATE service_orders SET status = $3, solution = COALESCE($4, solution)
+    `UPDATE service_orders
+        SET status = $3,
+            solution = COALESCE($4, solution),
+            started_at = CASE WHEN $3 = 'Em Andamento' THEN COALESCE(started_at, NOW()) ELSE started_at END
       WHERE tenant_id = $1 AND id = $2 RETURNING *`,
     [tenantId, id, status, solution],
+  );
+
+/** Programa o atendimento: define a data marcada e coloca a O.S. como "Agendada". */
+const scheduleOrder = (tenantId, id, { scheduledAt, technicianId }) =>
+  db.one(
+    `UPDATE service_orders
+        SET scheduled_at = $3,
+            technician_id = COALESCE($4, technician_id),
+            started_at = NULL,
+            status = 'Agendada'
+      WHERE tenant_id = $1 AND id = $2 RETURNING *`,
+    [tenantId, id, scheduledAt, technicianId],
+  );
+
+/** Remove a programação e devolve a O.S. para a fila de agendamento. */
+const unscheduleOrder = (tenantId, id) =>
+  db.one(
+    `UPDATE service_orders
+        SET scheduled_at = NULL, started_at = NULL, status = 'Aguardando Agendamento'
+      WHERE tenant_id = $1 AND id = $2 RETURNING *`,
+    [tenantId, id],
   );
 
 const remove = (tenantId, id) =>
@@ -116,4 +173,4 @@ const updateSla = (tenantId, id, slaHours) =>
     slaHours,
   ]);
 
-module.exports = { updateSla, list, findById, create, update, updateProgress, remove, statusSummary };
+module.exports = { updateSla, startDueOrders, scheduleOrder, unscheduleOrder, list, findById, create, update, updateProgress, remove, statusSummary };

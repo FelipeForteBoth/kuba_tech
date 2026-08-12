@@ -3,7 +3,7 @@ const model = require('./portal.model');
 const { AppError } = require('../../shared/http');
 const { onlyDigits } = require('../../shared/validators');
 
-const STATUS_STEPS = ['A Realizar', 'Em Andamento', 'Finalizada'];
+const STATUS_STEPS = ['Aguardando Agendamento', 'Agendada', 'Em Andamento', 'Finalizada'];
 
 // POST /api/portal/consulta { numero, cpf }
 async function lookup(req, res) {

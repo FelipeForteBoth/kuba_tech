@@ -21,6 +21,13 @@ const canManage = authorize(ROLES.COMPANY_ADMIN, ROLES.ATTENDANT);
 router.post('/', canManage, asyncHandler(controller.store));
 router.put('/:id', canManage, asyncHandler(controller.update));
 
+// Programação do atendimento (núcleo do fluxo — disponível em todos os planos).
+router.patch(
+  '/:id/schedule',
+  authorize(ROLES.COMPANY_ADMIN, ROLES.ATTENDANT, ROLES.TECHNICIAN),
+  asyncHandler(controller.schedule),
+);
+
 // Andamento: também o Técnico responsável.
 router.patch(
   '/:id/status',

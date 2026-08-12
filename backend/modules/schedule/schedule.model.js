@@ -3,7 +3,12 @@ const db = require('../../config/database');
 
 const BASE = `
   SELECT so.id, so.number, so.status, so.scheduled_at, so.opening_date, so.sla_hours,
-         (so.created_at + make_interval(hours => so.sla_hours)) AS sla_due_at,
+         CASE
+           WHEN so.status = 'Aguardando Agendamento'
+             THEN so.created_at + make_interval(hours => so.scheduling_sla_hours)
+           WHEN so.status = 'Agendada' THEN NULL
+           ELSE COALESCE(so.started_at, so.scheduled_at, so.created_at) + make_interval(hours => so.sla_hours)
+         END AS sla_due_at,
          so.problem_description,
          c.name AS customer_name, c.phone AS customer_phone,
          d.type AS device_type, d.brand AS device_brand, d.model AS device_model,
@@ -31,7 +36,7 @@ const listScheduled = (tenantId, { from, to, technicianId }) => {
 const listUnscheduled = (tenantId, technicianId) => {
   const params = [tenantId];
   let sql = `${BASE} WHERE so.tenant_id = $1 AND so.scheduled_at IS NULL
-               AND so.status IN ('A Realizar', 'Em Andamento')`;
+               AND so.status IN ('Aguardando Agendamento', 'Em Andamento')`;
   if (technicianId) {
     params.push(technicianId);
     sql += ` AND so.technician_id = $${params.length}`;
@@ -43,9 +48,20 @@ const schedule = (tenantId, id, { scheduledAt, technicianId }) =>
   db.one(
     `UPDATE service_orders
         SET scheduled_at = $3,
-            technician_id = COALESCE($4, technician_id)
+            technician_id = COALESCE($4, technician_id),
+            started_at = NULL,
+            status = CASE WHEN $3::timestamptz IS NULL THEN 'Aguardando Agendamento' ELSE 'Agendada' END
       WHERE tenant_id = $1 AND id = $2 RETURNING id`,
     [tenantId, id, scheduledAt, technicianId],
+  );
+
+/** Inicia automaticamente as O.S. cuja hora programada já chegou. */
+const startDueOrders = (tenantId) =>
+  db.run(
+    `UPDATE service_orders
+        SET status = 'Em Andamento', started_at = COALESCE(started_at, scheduled_at, NOW())
+      WHERE tenant_id = $1 AND status = 'Agendada' AND scheduled_at <= NOW()`,
+    [tenantId],
   );
 
 const findById = (tenantId, id) => db.one(`${BASE} WHERE so.tenant_id = $1 AND so.id = $2`, [tenantId, id]);
@@ -62,4 +78,4 @@ const workload = (tenantId, from, to) =>
     [tenantId, from, to],
   );
 
-module.exports = { listScheduled, listUnscheduled, schedule, findById, workload };
+module.exports = { startDueOrders, listScheduled, listUnscheduled, schedule, findById, workload };

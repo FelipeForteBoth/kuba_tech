@@ -9,7 +9,8 @@ const fmtDateTime = (v) => (v ? new Date(v).toLocaleString('pt-BR', { dateStyle:
 
 function statusBadge(status) {
   const map = {
-    'A Realizar': 'badge-todo',
+    'Aguardando Agendamento': 'badge-todo',
+    Agendada: 'badge-prog',
     'Em Andamento': 'badge-prog',
     Finalizada: 'badge-done',
     Cancelada: 'badge-del',
@@ -120,7 +121,11 @@ function openForm(order) {
     <div class="d-section"><i class="fas fa-calendar-days"></i> Programação</div>
     <div class="fg">
       <label for="fld-when">Data e hora do atendimento</label>
-      <input type="datetime-local" class="fc" id="fld-when" value="${toLocalInput(order.scheduled_at)}">
+      <input type="datetime-local" class="fc" id="fld-when"
+        min="${toLocalInput(new Date(Date.now() + 60000))}"
+        max="${toLocalInput(new Date(Date.now() + 30 * 86400000))}"
+        value="${toLocalInput(order.scheduled_at) || toLocalInput(new Date(Date.now() + 60000))}">
+      <span class="stat-lbl">Do próximo minuto até 1 mês à frente.</span>
     </div>
     <div class="fg">
       <label for="fld-tec">Técnico responsável</label>
@@ -146,6 +151,13 @@ async function save(id, scheduledAt, technicianId) {
     if (!confirm('Remover a programação deste atendimento?')) return;
   } else if (!scheduledAt) {
     return toast('Informe a data e a hora do atendimento.', 'err');
+  } else {
+    const when = new Date(scheduledAt);
+    if (Number.isNaN(when.getTime())) return toast('Data do atendimento inválida.', 'err');
+    if (when <= new Date()) return toast('O agendamento deve ser para, no mínimo, o próximo minuto.', 'err');
+    if (when > new Date(Date.now() + 30 * 86400000)) {
+      return toast('O agendamento deve ser para, no máximo, 1 mês à frente.', 'err');
+    }
   }
 
   const res = await authFetch(`${API_URL}/schedule/${id}`, {
@@ -163,7 +175,9 @@ async function save(id, scheduledAt, technicianId) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  const today = new Date().toISOString().slice(0, 10);
+  const pad = (n) => String(n).padStart(2, '0');
+  const localDate = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const today = localDate(new Date());
   $('f-from').value = today;
   $('f-to').value = today;
 
@@ -177,7 +191,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const end = new Date();
     end.setDate(end.getDate() + 7);
     $('f-from').value = today;
-    $('f-to').value = end.toISOString().slice(0, 10);
+    $('f-to').value = localDate(end);
     load();
   });
 
