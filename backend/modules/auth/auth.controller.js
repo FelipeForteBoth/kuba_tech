@@ -5,6 +5,7 @@ const model = require('./auth.model');
 const { JWT_SECRET } = require('../../middleware/auth');
 const { ROLE_LABELS } = require('../../config/roles');
 const { AppError } = require('../../shared/http');
+const { tenantModuleCodes } = require('../../middleware/modules');
 const {
   isValidEmail,
   isValidName,
@@ -29,7 +30,7 @@ function signToken(user) {
   );
 }
 
-function publicUser(user) {
+function publicUser(user, modulos = []) {
   return {
     id: user.id,
     nome: user.name,
@@ -39,6 +40,7 @@ function publicUser(user) {
     tenantId: user.tenant_id || null,
     empresa: user.company_name || null,
     plano: user.plan_name || null,
+    modulos,
   };
 }
 
@@ -80,7 +82,10 @@ async function registerCompany(req, res) {
   const token = signToken(user);
   res.status(201).json({
     token,
-    usuario: publicUser({ ...user, company_name: tenant.company_name, plan_name: plan.name }),
+    usuario: publicUser(
+      { ...user, company_name: tenant.company_name, plan_name: plan.name },
+      await tenantModuleCodes(tenant.id),
+    ),
   });
 }
 
@@ -106,14 +111,14 @@ async function login(req, res) {
   }
 
   await model.registerLogin(user.id);
-  res.json({ token: signToken(user), usuario: publicUser(user) });
+  res.json({ token: signToken(user), usuario: publicUser(user, await tenantModuleCodes(user.tenant_id)) });
 }
 
 // GET /api/auth/me
 async function me(req, res) {
   const user = await model.findUserById(req.user.id);
   if (!user) throw new AppError('Usuário não encontrado.', 404);
-  res.json(publicUser(user));
+  res.json(publicUser(user, await tenantModuleCodes(user.tenant_id)));
 }
 
 // PUT /api/auth/password

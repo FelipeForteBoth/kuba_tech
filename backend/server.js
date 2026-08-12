@@ -16,6 +16,9 @@ const deviceRoutes = require('./modules/devices/device.routes');
 const serviceOrderRoutes = require('./modules/serviceOrders/serviceOrder.routes');
 const platformRoutes = require('./modules/platform/platform.routes');
 const companyRoutes = require('./modules/company/company.routes');
+const reportRoutes = require('./modules/reports/report.routes');
+const scheduleRoutes = require('./modules/schedule/schedule.routes');
+const portalRoutes = require('./modules/portal/portal.routes');
 
 const app = express();
 
@@ -39,6 +42,9 @@ app.use('/api/devices', deviceRoutes);
 app.use('/api/service-orders', serviceOrderRoutes);
 app.use('/api/platform', platformRoutes);
 app.use('/api/company', companyRoutes);
+app.use('/api/reports', reportRoutes);
+app.use('/api/schedule', scheduleRoutes);
+app.use('/api/portal', portalRoutes);
 
 app.use('/api', (_req, res) => res.status(404).json({ error: 'Recurso não encontrado.' }));
 

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ordens de Serviço — Kuba Tech</title>
+  <title>Agenda Técnica — Kuba Tech</title>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link rel="stylesheet" href="../css/style.css">
@@ -34,53 +34,51 @@
 
     <div class="page-header">
       <div>
-        <h1 class="page-title">Ordens de Serviço</h1>
-        <p class="page-sub" id="sub-count">Carregando...</p>
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn btn-ghost" id="btn-sla" data-requires="companySettings" data-module="sla">
-          <i class="fas fa-stopwatch"></i> SLA padrão
-        </button>
-        <button class="btn btn-primary" id="btn-new" data-requires="orders">
-          <i class="fas fa-plus"></i> Nova O.S.
-        </button>
+        <h1 class="page-title">Agenda Técnica</h1>
+        <p class="page-sub" id="sub-info">Programação de atendimentos</p>
       </div>
     </div>
 
     <div class="toolbar">
-      <div class="search-wrap">
-        <i class="fas fa-search"></i>
-        <input type="text" class="search-input" id="search-input"
-          placeholder="Buscar por ID, CPF, serial, técnico ou defeito...">
-      </div>
-      <select class="filter-sel" id="filter-status">
-        <option value="">Todos os status</option>
-        <option value="A Realizar">A Realizar</option>
-        <option value="Em Andamento">Em Andamento</option>
-        <option value="Finalizada">Finalizada</option>
-        <option value="Cancelada">Cancelada</option>
-      </select>
-      <button class="btn-sort" id="btn-sort">
-        <i class="fas fa-sort-numeric-down"></i> Mais recentes
-      </button>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;">
+        De <input type="date" class="filter-sel" id="f-from">
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;">
+        Até <input type="date" class="filter-sel" id="f-to">
+      </label>
+      <button class="btn btn-primary" id="btn-filter"><i class="fas fa-filter"></i> Aplicar</button>
+      <button class="btn btn-ghost" id="btn-today"><i class="fas fa-calendar-day"></i> Hoje</button>
+      <button class="btn btn-ghost" id="btn-week"><i class="fas fa-calendar-week"></i> Próximos 7 dias</button>
     </div>
 
     <div class="tcard">
       <div class="tscroll">
         <table>
           <thead>
-            <tr>
-              <th>O.S.</th>
-              <th>Cliente (CPF)</th>
-              <th>Equipamento</th>
-              <th>Técnico</th>
-              <th>Data</th>
-              <th>Prazo (SLA)</th>
-              <th>Status</th>
-              <th></th>
-            </tr>
+            <tr><th>Data / hora</th><th>O.S.</th><th>Cliente</th><th>Equipamento</th><th>Técnico</th><th>Status</th><th></th></tr>
           </thead>
-          <tbody id="tbody"></tbody>
+          <tbody id="t-agenda"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <h2 class="page-title" style="font-size:18px;margin:24px 0 10px;">Aguardando programação</h2>
+    <div class="tcard" style="margin-bottom:24px;">
+      <div class="tscroll">
+        <table>
+          <thead>
+            <tr><th>O.S.</th><th>Cliente</th><th>Equipamento</th><th>Técnico</th><th>Prazo (SLA)</th><th></th></tr>
+          </thead>
+          <tbody id="t-pendentes"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tcard" id="card-carga" style="margin-bottom:24px;display:none;">
+      <div class="tscroll">
+        <table>
+          <thead><tr><th>Carga por técnico no período</th><th>Atendimentos</th></tr></thead>
+          <tbody id="t-carga"></tbody>
         </table>
       </div>
     </div>
@@ -93,8 +91,8 @@
 <div id="drawer" class="drawer">
   <div class="drawer-hd">
     <div>
-      <div class="drawer-title" id="drawer-title">O.S.</div>
-      <div class="drawer-mode" id="drawer-mode">Visualização</div>
+      <div class="drawer-title" id="drawer-title">Programar atendimento</div>
+      <div class="drawer-mode" id="drawer-mode">Agenda</div>
     </div>
     <button class="drawer-x" id="drawer-x">×</button>
   </div>
@@ -104,6 +102,6 @@
 
 <script src="../js/config.js"></script>
 <script src="../js/shared.js"></script>
-<script src="../js/os.js"></script>
+<script src="../js/agenda.js"></script>
 </body>
 </html>

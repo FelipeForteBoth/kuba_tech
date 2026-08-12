@@ -72,13 +72,26 @@ const ROLE_LABELS = {
   manager: 'Gestor',
 };
 
+// Páginas públicas (sem sessão).
+const PUBLIC_PAGES = ['login', 'cadastro', 'portal'];
+
 // Páginas que cada perfil pode abrir.
 const PAGE_ACCESS = {
   platform_admin: ['plataforma'],
-  company_admin: ['index', 'clientes', 'dispositivos', 'os', 'usuarios'],
-  attendant: ['index', 'clientes', 'dispositivos', 'os'],
-  technician: ['index', 'os'],
-  manager: ['index', 'clientes', 'dispositivos', 'os'],
+  company_admin: ['index', 'clientes', 'dispositivos', 'os', 'usuarios', 'relatorios', 'agenda'],
+  attendant: ['index', 'clientes', 'dispositivos', 'os', 'agenda'],
+  technician: ['index', 'os', 'agenda'],
+  manager: ['index', 'clientes', 'dispositivos', 'os', 'relatorios'],
+};
+
+// Páginas que dependem de um módulo contratado no plano da empresa.
+const PAGE_MODULES = {
+  clientes: 'customers',
+  dispositivos: 'devices',
+  os: 'orders',
+  usuarios: 'users',
+  relatorios: 'reports',
+  agenda: 'schedule',
 };
 
 // Perfis autorizados a criar/editar em cada módulo.
@@ -89,6 +102,8 @@ const WRITE_ACCESS = {
   orderStatus: ['company_admin', 'attendant', 'technician'],
   users: ['company_admin'],
   companySettings: ['company_admin'],
+  schedule: ['company_admin', 'attendant'],
+  reports: ['company_admin', 'manager'],
   tenants: ['platform_admin'],
 };
 
@@ -101,6 +116,20 @@ function can(action) {
 
 function canDelete() {
   return DELETE_ACCESS.includes(currentRole());
+}
+
+// Módulos contratados pela empresa (vêm do login / GET /auth/me).
+function currentModules() {
+  const user = currentUser();
+  return Array.isArray(user && user.modulos) ? user.modulos : [];
+}
+
+function hasModule(code) {
+  if (!code) return true;
+  const user = currentUser();
+  if (!user) return false;
+  if (user.perfil === 'platform_admin') return true;
+  return currentModules().includes(code);
 }
 
 function homePageFor(role) {
@@ -116,7 +145,7 @@ function currentPage() {
 // Controle de acesso executado na entrada de cada página.
 function enforceAccess() {
   const page = currentPage();
-  if (page === 'login' || page === 'cadastro') return;
+  if (PUBLIC_PAGES.includes(page)) return;
 
   const session = getSession();
   if (!session) {
@@ -126,14 +155,20 @@ function enforceAccess() {
 
   const role = session.usuario.perfil;
   const allowed = PAGE_ACCESS[role] || [];
-  if (!allowed.includes(page)) {
+  if (!allowed.includes(page) || !hasModule(PAGE_MODULES[page])) {
     window.location.href = homePageFor(role);
     return;
   }
 
-  // Oculta do menu tudo que o perfil não pode acessar.
+  // Oculta do menu tudo que o perfil não pode acessar ou que não está no plano.
   document.querySelectorAll('.nav-item[data-page]').forEach((el) => {
-    el.style.display = allowed.includes(el.dataset.page) ? '' : 'none';
+    const visible = allowed.includes(el.dataset.page) && hasModule(PAGE_MODULES[el.dataset.page]);
+    el.style.display = visible ? '' : 'none';
+  });
+
+  // Oculta elementos que dependem de um módulo do plano.
+  document.querySelectorAll('[data-module]').forEach((el) => {
+    if (!hasModule(el.dataset.module)) el.style.display = 'none';
   });
 
   // Oculta ações de escrita para perfis somente leitura (ex.: Gestor).
@@ -141,6 +176,7 @@ function enforceAccess() {
     if (!can(el.dataset.requires)) el.style.display = 'none';
   });
 }
+
 
 // ── TEMA (claro / escuro) ──
 const THEME_CSS = `
@@ -215,6 +251,8 @@ function injectLogoutButton() {
   if (!navbar || document.getElementById('btn-logout')) return;
 
   const user = currentUser();
+  if (!user && PUBLIC_PAGES.includes(currentPage())) return; // páginas públicas: sem barra de sessão
+
   const wrap = document.createElement('div');
   wrap.style.cssText = 'margin-left:auto;display:flex;gap:10px;align-items:center;';
 

@@ -191,6 +191,7 @@ CREATE TABLE service_orders (
     solution            TEXT,
     status              os_status   NOT NULL DEFAULT 'A Realizar',
     sla_hours           INTEGER     NOT NULL DEFAULT 48 CHECK (sla_hours BETWEEN 1 AND 8760),
+    scheduled_at        TIMESTAMPTZ,                    -- módulo Agenda Técnica
     created_by          UUID        REFERENCES users(id) ON DELETE SET NULL,
     closed_at           TIMESTAMPTZ,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -200,6 +201,7 @@ CREATE TABLE service_orders (
 CREATE INDEX idx_os_tenant     ON service_orders(tenant_id);
 CREATE INDEX idx_os_status     ON service_orders(tenant_id, status);
 CREATE INDEX idx_os_technician ON service_orders(technician_id);
+CREATE INDEX idx_os_scheduled  ON service_orders(tenant_id, scheduled_at);
 
 -- Numeração sequencial por empresa + updated_at automático
 CREATE OR REPLACE FUNCTION set_service_order_number()

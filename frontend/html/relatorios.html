@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Relatórios — Kuba Tech</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+  <button id="menu-btn"><i class="fas fa-bars"></i></button>
+  <a href="index.html" class="navbar-brand">
+    <div class="brand-icon"><i class="fas fa-tools"></i></div>
+    Kuba Tech
+  </a>
+</nav>
+
+<div id="wrapper">
+  <aside id="sidebar">
+    <span class="sidebar-label">Menu Principal</span>
+    <a href="index.html"        class="nav-item" data-page="index"><i class="fas fa-home"></i> Dashboard</a>
+    <a href="clientes.html"     class="nav-item" data-page="clientes"><i class="fas fa-users"></i> Clientes</a>
+    <a href="dispositivos.html" class="nav-item" data-page="dispositivos"><i class="fas fa-laptop-medical"></i> Equipamentos</a>
+    <a href="os.html"           class="nav-item" data-page="os"><i class="fas fa-file-invoice"></i> Ordens de Serviço</a>
+    <a href="usuarios.html"     class="nav-item" data-page="usuarios"><i class="fas fa-user-shield"></i> Usuários</a>
+    <a href="relatorios.html"   class="nav-item" data-page="relatorios"><i class="fas fa-chart-column"></i> Relatórios</a>
+    <a href="agenda.html"       class="nav-item" data-page="agenda"><i class="fas fa-calendar-days"></i> Agenda Técnica</a>
+  </aside>
+
+  <main id="main-content">
+
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Relatórios</h1>
+        <p class="page-sub" id="sub-info">Indicadores gerenciais do período</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-ghost" id="btn-export"><i class="fas fa-file-csv"></i> Exportar CSV</button>
+        <button class="btn btn-ghost" id="btn-print"><i class="fas fa-print"></i> Imprimir</button>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;">
+        De <input type="date" class="filter-sel" id="f-from">
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;">
+        Até <input type="date" class="filter-sel" id="f-to">
+      </label>
+      <button class="btn btn-primary" id="btn-filter"><i class="fas fa-filter"></i> Aplicar</button>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-icon ico-purple"><i class="fas fa-file-invoice"></i></div>
+        <div><div class="stat-val" id="s-total">—</div><div class="stat-lbl">O.S. no período</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon ico-green"><i class="fas fa-check-circle"></i></div>
+        <div><div class="stat-val" id="s-done">—</div><div class="stat-lbl">Finalizadas</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon ico-yellow"><i class="fas fa-spinner"></i></div>
+        <div><div class="stat-val" id="s-prog">—</div><div class="stat-lbl">Em Andamento</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon ico-blue"><i class="fas fa-stopwatch"></i></div>
+        <div><div class="stat-val" id="s-sla">—</div><div class="stat-lbl">Prazo cumprido (SLA)</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon ico-red"><i class="fas fa-triangle-exclamation"></i></div>
+        <div><div class="stat-val" id="s-late">—</div><div class="stat-lbl">Atrasadas em aberto</div></div>
+      </div>
+    </div>
+
+    <div class="tcard">
+      <div class="tscroll">
+        <table>
+          <thead><tr><th colspan="2">Evolução mensal das aberturas</th></tr></thead>
+          <tbody id="t-mensal"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tcard" style="margin-top:18px;">
+      <div class="tscroll">
+        <table>
+          <thead>
+            <tr><th>Técnico</th><th>Total</th><th>Em andamento</th><th>Finalizadas</th><th>Tempo médio (h)</th></tr>
+          </thead>
+          <tbody id="t-tecnicos"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tcard" style="margin-top:18px;">
+      <div class="tscroll">
+        <table>
+          <thead><tr><th>Cliente</th><th>CPF</th><th>Atendimentos</th></tr></thead>
+          <tbody id="t-clientes"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tcard" style="margin-top:18px;margin-bottom:24px;">
+      <div class="tscroll">
+        <table>
+          <thead><tr><th>Tipo de equipamento</th><th>Atendimentos</th></tr></thead>
+          <tbody id="t-equipamentos"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="../js/config.js"></script>
+<script src="../js/shared.js"></script>
+<script src="../js/relatorios.js"></script>
+</body>
+</html>

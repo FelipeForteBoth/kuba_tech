@@ -3,6 +3,7 @@ const express = require('express');
 const controller = require('./serviceOrder.controller');
 const { authenticate } = require('../../middleware/auth');
 const { authorize, tenantScope } = require('../../middleware/rbac');
+const { requireModule } = require('../../middleware/modules');
 const { asyncHandler } = require('../../shared/http');
 const { ROLES } = require('../../config/roles');
 
@@ -28,7 +29,12 @@ router.patch(
 );
 
 // Prazo (SLA): apenas o Administrador da Empresa ajusta.
-router.patch('/:id/sla', authorize(ROLES.COMPANY_ADMIN), asyncHandler(controller.updateSla));
+router.patch(
+  '/:id/sla',
+  requireModule('sla'),
+  authorize(ROLES.COMPANY_ADMIN),
+  asyncHandler(controller.updateSla),
+);
 
 router.delete('/:id', authorize(ROLES.COMPANY_ADMIN), asyncHandler(controller.destroy));
 
