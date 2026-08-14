@@ -43,8 +43,8 @@ function formatCPF(digits) {
 function isValidCPF(cpf) {
   const digits = normalizeCPF(cpf);
   if (!digits) return false;
-  if (digits.length !== 11) return false;
-  return true;
+  // Camada 1: dígitos verificadores oficiais da Receita Federal.
+  return require('./documents').isValidCPFDigits(digits);
 }
 
 // ── Telefone ──
@@ -130,7 +130,9 @@ function formatCNPJ(digits) {
 }
 
 function isValidCNPJ(cnpj) {
-  return normalizeCNPJ(cnpj) !== null;
+  const digits = normalizeCNPJ(cnpj);
+  if (!digits) return false;
+  return require('./documents').isValidCNPJDigits(digits);
 }
 
 // ── Razão social / nome fantasia ──

@@ -36,7 +36,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- ---------------------------------------------------------------------
 CREATE TYPE user_role     AS ENUM ('platform_admin', 'company_admin', 'attendant', 'technician', 'manager');
 CREATE TYPE tenant_status AS ENUM ('active', 'suspended', 'canceled');
-CREATE TYPE os_status     AS ENUM ('A Realizar', 'Em Andamento', 'Finalizada', 'Cancelada');
+
 
 -- ---------------------------------------------------------------------
 -- Módulo: Plataforma (planos e módulos comercializáveis)
@@ -189,7 +189,10 @@ CREATE TABLE service_orders (
     opening_date        DATE        NOT NULL,
     problem_description TEXT        NOT NULL,
     solution            TEXT,
-    status              os_status   NOT NULL DEFAULT 'A Realizar',
+    status              TEXT        NOT NULL DEFAULT 'Aguardando Agendamento'
+                        CHECK (status IN ('Aguardando Agendamento','Agendada','Em Andamento','Finalizada','Cancelada')),
+    scheduling_sla_hours INTEGER    NOT NULL DEFAULT 24 CHECK (scheduling_sla_hours BETWEEN 1 AND 8760),
+    started_at          TIMESTAMPTZ,                    -- início real do serviço (SLA de serviço)
     sla_hours           INTEGER     NOT NULL DEFAULT 48 CHECK (sla_hours BETWEEN 1 AND 8760),
     scheduled_at        TIMESTAMPTZ,                    -- módulo Agenda Técnica
     created_by          UUID        REFERENCES users(id) ON DELETE SET NULL,

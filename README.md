@@ -1,102 +1,3 @@
-Pular para a caixa de texto do chat
-
-Project Blueprint
-
-Visualização
-Arquivos
-Código
-Mais
-
-
-
-
-Code
-
-Read only
-
-
-
-
-
-
-
-
-
-
-Search code
-
-frontend/css/login.css
-frontend/css/style.css
-frontend/html/cadastro.html
-frontend/html/clientes.html
-frontend/html/dispositivos.html
-frontend/html/index.html
-frontend/html/login.html
-frontend/html/os.html
-frontend/js/cadastro.js
-frontend/js/clientes.js
-frontend/js/config.js
-frontend/js/dashboard.js
-frontend/js/dispositivos.js
-frontend/js/login.js
-frontend/js/os.js
-frontend/js/shared.js
-frontend/index.html
-.gitignore
-README.md
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31
-32
-33
-34
-35
-36
-37
-38
-39
-40
-41
-42
-43
-44
-45
-46
-47
-48
-49
-50
-51
-52
-53
 # Kuba Tech — Sistema de Gestão
 
 ## Como rodar
@@ -150,3 +51,16 @@ kuba_tech/
       database.js      ← conexão MySQL (edite a senha aqui)
       DataBase.txt     ← script SQL para criar as tabelas
     routes/
+      customerRoutes.js
+      deviceRoutes.js
+      serviceOrderRoutes.js
+    server.js          ← inicie o servidor por aqui
+  public/
+    index.html         ← Dashboard
+    clientes.html
+    dispositivos.html
+    os.html
+    css/style.css
+    js/*.js
+    img/
+```

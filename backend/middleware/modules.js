@@ -1,6 +1,7 @@
 // ─────────────────────────────────────────────────────────────
 // Controle de acesso por módulo contratado (plano da empresa).
 // Um módulo só responde se estiver habilitado em tenant_modules.
+// Aceita tanto o código interno quanto o slug comercial.
 // ─────────────────────────────────────────────────────────────
 const db = require('../config/database');
 
@@ -9,7 +10,7 @@ async function tenantModuleCodes(tenantId) {
   const rows = await db.all(
     `SELECT m.code FROM tenant_modules tm
        JOIN modules m ON m.id = tm.module_id
-      WHERE tm.tenant_id = $1`,
+      WHERE tm.tenant_id = $1 AND COALESCE(m.active, TRUE)`,
     [tenantId],
   );
   return rows.map((row) => row.code);
@@ -19,7 +20,7 @@ async function tenantHasModule(tenantId, code) {
   const row = await db.one(
     `SELECT 1 AS ok FROM tenant_modules tm
        JOIN modules m ON m.id = tm.module_id
-      WHERE tm.tenant_id = $1 AND m.code = $2`,
+      WHERE tm.tenant_id = $1 AND (m.code = $2 OR m.slug = $2)`,
     [tenantId, code],
   );
   return Boolean(row);

@@ -39,8 +39,9 @@ async function load() {
       `${new Date(d.periodo.ate + 'T00:00:00').toLocaleDateString('pt-BR')}`;
 
     $('s-total').textContent = d.total;
-    $('s-done').textContent = d.status['Finalizada'] || 0;
-    $('s-prog').textContent = d.status['Em Andamento'] || 0;
+    $('s-done').textContent = (d.status['Finalizado'] || 0) + (d.status['Entregue'] || 0);
+    $('s-prog').textContent = ['Agendado', 'Em deslocamento', 'No local', 'Em execução', 'Aguardando cliente']
+      .reduce((total, st) => total + (d.status[st] || 0), 0);
     $('s-sla').textContent = d.sla.aderencia === null ? '—' : `${d.sla.aderencia}%`;
     $('s-late').textContent = d.sla.atrasadas_abertas || 0;
 

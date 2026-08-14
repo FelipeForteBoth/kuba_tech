@@ -103,6 +103,8 @@ const WRITE_ACCESS = {
   users: ['company_admin'],
   companySettings: ['company_admin'],
   schedule: ['company_admin', 'attendant'],
+  photos: ['company_admin', 'attendant', 'technician'],
+  signature: ['company_admin', 'attendant', 'technician'],
   reports: ['company_admin', 'manager'],
   tenants: ['platform_admin'],
 };
@@ -386,13 +388,36 @@ function normalizeCPF(cpf) {
   return onlyDigits(trimmed);
 }
 
+// Algoritmo oficial dos dígitos verificadores do CPF (Receita Federal).
 function isValidCPF(cpf) {
-  const digits = normalizeCPF(cpf);
-  return Boolean(digits) && digits.length === 11;
+  const d = onlyDigits(cpf);
+  if (d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false;
+  const calc = (len) => {
+    let sum = 0;
+    for (let i = 0; i < len; i += 1) sum += Number(d[i]) * (len + 1 - i);
+    const rest = (sum * 10) % 11;
+    return rest === 10 ? 0 : rest;
+  };
+  return calc(9) === Number(d[9]) && calc(10) === Number(d[10]);
 }
 
+// Algoritmo oficial dos dígitos verificadores do CNPJ.
 function isValidCNPJ(cnpj) {
-  return onlyDigits(cnpj).length === 14;
+  const d = onlyDigits(cnpj);
+  if (d.length !== 14 || /^(\d)\1{13}$/.test(d)) return false;
+  const calc = (len) => {
+    const w = len === 12 ? [5,4,3,2,9,8,7,6,5,4,3,2] : [6,5,4,3,2,9,8,7,6,5,4,3,2];
+    let sum = 0;
+    for (let i = 0; i < len; i += 1) sum += Number(d[i]) * w[i];
+    const rest = sum % 11;
+    return rest < 2 ? 0 : 11 - rest;
+  };
+  return calc(12) === Number(d[12]) && calc(13) === Number(d[13]);
+}
+
+// Valida CPF ou CNPJ conforme o tipo do documento selecionado.
+function isValidDocument(value, type) {
+  return String(type).toUpperCase() === 'CNPJ' ? isValidCNPJ(value) : isValidCPF(value);
 }
 
 function normalizePhone(phone) {
@@ -455,6 +480,83 @@ function isValidPastOrTodayDate(dateStr) {
 function esc(value) {
   return String(value ?? '').replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+
+
+// ── ESTEIRA DA ORDEM DE SERVIÇO (v2) ──
+const OS_STATUS = ['Aberto', 'Agendado', 'Em deslocamento', 'No local', 'Em execução',
+  'Aguardando cliente', 'Finalizado', 'Entregue', 'Cancelado'];
+
+const OS_STATUS_CLASS = {
+  Aberto: 'badge-todo',
+  Agendado: 'badge-prog',
+  'Em deslocamento': 'badge-prog',
+  'No local': 'badge-prog',
+  'Em execução': 'badge-prog',
+  'Aguardando cliente': 'badge-todo',
+  Finalizado: 'badge-done',
+  Entregue: 'badge-done',
+  Cancelado: 'badge-del',
+};
+
+const OS_CLOSED = ['Finalizado', 'Entregue', 'Cancelado'];
+
+function osBadge(status) {
+  return `<span class="badge ${OS_STATUS_CLASS[status] || 'badge-todo'}">${esc(status)}</span>`;
+}
+
+// ── CONSULTAS A BASES PÚBLICAS (CNPJ / CEP) ──
+async function consultarCNPJ(cnpj) {
+  const res = await authFetch(`${API_URL}/lookup/cnpj/${onlyDigits(cnpj)}`);
+  const dados = await res.json();
+  if (!res.ok) throw new Error(dados.error || 'CNPJ inválido.');
+  return dados;
+}
+
+async function consultarCEP(cep) {
+  const res = await authFetch(`${API_URL}/lookup/cep/${onlyDigits(cep)}`);
+  const dados = await res.json();
+  if (!res.ok) throw new Error(dados.error || 'CEP inválido.');
+  return dados;
+}
+
+function maskCEP(v) {
+  v = onlyDigits(v).slice(0, 8);
+  return v.length > 5 ? `${v.slice(0, 5)}-${v.slice(5)}` : v;
+}
+
+// ── DATAS LOCAIS (evita o deslocamento do fuso UTC) ──
+function hojeLocal(d = new Date()) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function paraInputDateTime(d) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${hojeLocal(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// Reduz a imagem antes do upload (economiza banda no celular do técnico).
+function comprimirImagem(file, maxLado = 1280, qualidade = 0.75) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Falha ao ler a imagem.'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Arquivo de imagem inválido.'));
+      img.onload = () => {
+        const escala = Math.min(1, maxLado / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * escala);
+        canvas.height = Math.round(img.height * escala);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', qualidade));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 // ── TOAST ──

@@ -16,8 +16,8 @@ const byTechnician = (tenantId, from, to) =>
   db.all(
     `SELECT COALESCE(u.name, 'Sem técnico') AS technician_name,
             COUNT(*)::int                                                        AS total,
-            COUNT(*) FILTER (WHERE so.status = 'Finalizada')::int                AS finalizadas,
-            COUNT(*) FILTER (WHERE so.status = 'Em Andamento')::int              AS em_andamento,
+            COUNT(*) FILTER (WHERE so.status IN ('Finalizado','Entregue'))::int                AS finalizadas,
+            COUNT(*) FILTER (WHERE so.status IN ('Em deslocamento','No local','Em execução','Aguardando cliente'))::int              AS em_andamento,
             ROUND(AVG(EXTRACT(EPOCH FROM (so.closed_at - so.created_at)) / 3600.0)
                   FILTER (WHERE so.closed_at IS NOT NULL)::numeric, 1)           AS horas_medias
        FROM service_orders so
@@ -43,7 +43,7 @@ const slaPerformance = (tenantId, from, to) =>
        )::int AS fora_do_prazo,
        COUNT(*) FILTER (
          WHERE so.closed_at IS NULL
-           AND so.status NOT IN ('Finalizada', 'Cancelada')
+           AND so.status NOT IN ('Finalizado', 'Entregue', 'Cancelado')
            AND NOW() > so.created_at + make_interval(hours => so.sla_hours)
        )::int AS atrasadas_abertas
       FROM service_orders so
@@ -54,10 +54,10 @@ const slaPerformance = (tenantId, from, to) =>
 /** Clientes com mais atendimentos. */
 const topCustomers = (tenantId, from, to) =>
   db.all(
-    `SELECT c.name, c.cpf, COUNT(*)::int AS total
+    `SELECT c.name, COALESCE(c.document_number, c.cpf) AS cpf, COUNT(*)::int AS total
        FROM service_orders so JOIN customers c ON c.id = so.customer_id
       WHERE so.tenant_id = $1 AND so.opening_date BETWEEN $2 AND $3
-      GROUP BY c.name, c.cpf ORDER BY total DESC, c.name LIMIT 10`,
+      GROUP BY c.name, COALESCE(c.document_number, c.cpf) ORDER BY total DESC, c.name LIMIT 10`,
     [tenantId, from, to],
   );
 

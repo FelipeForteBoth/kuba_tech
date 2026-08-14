@@ -17,7 +17,7 @@ const findPublicOrder = (number, cpf) =>
        JOIN tenant_modules tm ON tm.tenant_id = t.id
        JOIN modules m ON m.id = tm.module_id AND m.code = 'portal'
       WHERE so.number = $1
-        AND REGEXP_REPLACE(c.cpf, '\\D', '', 'g') = $2
+        AND REGEXP_REPLACE(COALESCE(c.document_number, c.cpf), '\\D', '', 'g') = $2
         AND t.status = 'active'
       LIMIT 1`,
     [number, cpf],

@@ -4,9 +4,9 @@ const db = require('../../config/database');
 const BASE = `
   SELECT so.id, so.number, so.status, so.scheduled_at, so.opening_date, so.sla_hours,
          CASE
-           WHEN so.status = 'Aguardando Agendamento'
+           WHEN so.status = 'Aberto'
              THEN so.created_at + make_interval(hours => so.scheduling_sla_hours)
-           WHEN so.status = 'Agendada' THEN NULL
+           WHEN so.status = 'Agendado' THEN NULL
            ELSE COALESCE(so.started_at, so.scheduled_at, so.created_at) + make_interval(hours => so.sla_hours)
          END AS sla_due_at,
          so.problem_description,
@@ -36,7 +36,7 @@ const listScheduled = (tenantId, { from, to, technicianId }) => {
 const listUnscheduled = (tenantId, technicianId) => {
   const params = [tenantId];
   let sql = `${BASE} WHERE so.tenant_id = $1 AND so.scheduled_at IS NULL
-               AND so.status IN ('Aguardando Agendamento', 'Em Andamento')`;
+               AND so.status IN ('Aberto', 'Em deslocamento', 'No local', 'Em execução', 'Aguardando cliente')`;
   if (technicianId) {
     params.push(technicianId);
     sql += ` AND so.technician_id = $${params.length}`;
@@ -50,7 +50,7 @@ const schedule = (tenantId, id, { scheduledAt, technicianId }) =>
         SET scheduled_at = $3,
             technician_id = COALESCE($4, technician_id),
             started_at = NULL,
-            status = CASE WHEN $3::timestamptz IS NULL THEN 'Aguardando Agendamento' ELSE 'Agendada' END
+            status = CASE WHEN $3::timestamptz IS NULL THEN 'Aberto' ELSE 'Agendado' END
       WHERE tenant_id = $1 AND id = $2 RETURNING id`,
     [tenantId, id, scheduledAt, technicianId],
   );
@@ -59,8 +59,8 @@ const schedule = (tenantId, id, { scheduledAt, technicianId }) =>
 const startDueOrders = (tenantId) =>
   db.run(
     `UPDATE service_orders
-        SET status = 'Em Andamento', started_at = COALESCE(started_at, scheduled_at, NOW())
-      WHERE tenant_id = $1 AND status = 'Agendada' AND scheduled_at <= NOW()`,
+        SET status = 'Em execução', execution_start_date = COALESCE(execution_start_date, scheduled_at, NOW()), started_at = COALESCE(started_at, scheduled_at, NOW())
+      WHERE tenant_id = $1 AND status = 'Agendado' AND COALESCE(service_type,'interno') = 'interno' AND scheduled_at <= NOW()`,
     [tenantId],
   );
 
