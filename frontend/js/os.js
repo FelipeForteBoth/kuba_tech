@@ -102,12 +102,19 @@ async function fetchDados() {
 
 function render(data) {
   const tbody = document.getElementById('tbody');
+  const cards = document.getElementById('cards');
+
   if (!data.length) {
     tbody.innerHTML = `<tr><td colspan="8">
       <div class="empty"><i class="fas fa-file-invoice"></i>
       <p>Nenhuma ordem de serviço encontrada.</p></div></td></tr>`;
+    if (cards) {
+      cards.innerHTML = `<div class="empty"><i class="fas fa-file-invoice"></i>
+        <p>Nenhuma ordem de serviço encontrada.</p></div>`;
+    }
     return;
   }
+
   tbody.innerHTML = data.map((o) => {
     const sla = slaInfo(o);
     return `
@@ -124,6 +131,27 @@ function render(data) {
       <td><i class="fas fa-chevron-right rarrow"></i></td>
     </tr>`;
   }).join('');
+
+  // Versão em cards (celular) — leitura e ação com o mínimo de toques.
+  if (cards) {
+    cards.innerHTML = data.map((o) => {
+      const sla = slaInfo(o);
+      return `
+      <article class="os-card" onclick="viewOS('${o.id}')">
+        <div class="os-card-hd">
+          <strong>#${esc(o.number)}</strong>
+          ${badgeStatus(o.status)}
+        </div>
+        <div class="os-card-line"><span>Cliente</span> ${esc(o.customer_name)}</div>
+        <div class="os-card-line"><span>Equipamento</span> ${esc(o.device_type)} — ${esc(o.serial_number)}</div>
+        <div class="os-card-line"><span>Técnico</span> ${esc(o.technician_name || 'Não atribuído')}</div>
+        <div class="os-card-line"><span>Data</span> ${fmtDate(o.opening_date)}</div>
+        <div class="os-card-line"><span>${esc(sla.rotulo)}</span>
+          <span class="badge ${sla.cls}">${esc(sla.texto)}</span></div>
+        <button class="btn btn-primary os-card-btn" onclick="event.stopPropagation();viewOS('${o.id}')">Abrir</button>
+      </article>`;
+    }).join('');
+  }
 }
 
 function applyFilter() {
@@ -158,6 +186,7 @@ async function viewOS(id) {
   const o = orders.find((x) => x.id === id);
   if (!o) return;
   editingId = null;
+  fecharModal();
   const sla = slaInfo(o);
 
   document.getElementById('drawer-title').textContent = `O.S. #${o.number}`;
@@ -165,31 +194,6 @@ async function viewOS(id) {
     o.service_type === 'externo' ? 'Atendimento externo' : 'Atendimento interno';
 
   document.getElementById('drawer-body').innerHTML = `
-    <div class="d-section"><i class="fas fa-info-circle"></i> Situação</div>
-    <div class="d-field"><div class="d-lbl">Status</div><div class="d-val">${badgeStatus(o.status)}</div></div>
-    <div class="d-field"><div class="d-lbl">Abertura</div><div class="d-val">${fmtDate(o.opening_date)}</div></div>
-    <div class="d-field"><div class="d-lbl">Agendamento</div>
-      <div class="d-val">${o.scheduled_at ? fmtDateTime(o.scheduled_at) : 'Ainda não agendada'}</div></div>
-    <div class="d-field"><div class="d-lbl">Prazo vigente</div>
-      <div class="d-val">${esc(sla.rotulo)}: ${o.sla_due_at ? fmtDateTime(o.sla_due_at) : '—'}
-        <span class="badge ${sla.cls}">${esc(sla.texto)}</span></div></div>
-    <div class="d-field"><div class="d-lbl">Técnico Responsável</div><div class="d-val">${esc(o.technician_name || 'Não atribuído')}</div></div>
-    <div class="d-field"><div class="d-lbl">Diagnóstico</div><div class="d-val">${esc(o.diagnosis || 'Não informado')}</div></div>
-    <div class="d-field"><div class="d-lbl">Aberta por</div><div class="d-val">${esc(o.created_by_name || '—')}</div></div>
-
-    ${o.service_type === 'externo' ? `
-    <div class="d-divider"></div>
-    <div class="d-section"><i class="fas fa-location-dot"></i> Local do atendimento</div>
-    <div class="d-field"><div class="d-lbl">Endereço</div><div class="d-val">${esc(enderecoTexto(o) || '—')}</div></div>
-    <div class="d-field"><div class="d-lbl">Coordenadas</div>
-      <div class="d-val mono">${o.latitude ? `${o.latitude}, ${o.longitude}` : 'Não geocodificado'}</div></div>
-    <div class="d-field"><div class="d-lbl">Deslocamento</div><div class="d-val">${fmtDateTime(o.departure_date)}</div></div>
-    <div class="d-field"><div class="d-lbl">Chegada</div><div class="d-val">${fmtDateTime(o.arrival_date)}</div></div>
-    <div class="d-field"><div class="d-lbl">Início da execução</div><div class="d-val">${fmtDateTime(o.execution_start_date)}</div></div>
-    <a class="btn btn-primary btn-sm btn-maps" target="_blank" rel="noopener" href="${mapsUrl(o)}">
-      <i class="fas fa-map-location-dot"></i> Abrir no Google Maps</a>` : ''}
-
-    <div class="d-divider"></div>
     <div class="d-section"><i class="fas fa-user"></i> Cliente</div>
     <div class="d-field"><div class="d-lbl">Nome</div><div class="d-val">${esc(o.customer_name)}</div></div>
     ${o.customer_company_name ? `<div class="d-field"><div class="d-lbl">Razão social</div><div class="d-val">${esc(o.customer_company_name)}</div></div>` : ''}
@@ -202,24 +206,43 @@ async function viewOS(id) {
     <div class="d-field"><div class="d-lbl">Série</div><div class="d-val mono">${esc(o.serial_number)}</div></div>
 
     <div class="d-divider"></div>
-    <div class="d-section"><i class="fas fa-clipboard-list"></i> Serviço</div>
+    <div class="d-section"><i class="fas fa-stethoscope"></i> Diagnóstico e serviço</div>
+    <div class="d-field"><div class="d-lbl">Diagnóstico</div><div class="d-val">${esc(o.diagnosis || 'Não informado')}</div></div>
     <div class="d-field"><div class="d-lbl">Defeito relatado</div><div class="d-val pre-box">${esc(o.problem_description)}</div></div>
     <div class="d-field"><div class="d-lbl">Solução aplicada</div><div class="d-val pre-box">${esc(o.solution || 'Ainda não informada.')}</div></div>
 
-    ${temFotos() ? `<div class="d-divider"></div>
-    <div class="d-section"><i class="fas fa-camera"></i> Evidências fotográficas
-      <span id="foto-contador" class="stat-lbl">(${o.photo_count || 0}/${FOTOS_MAX})</span></div>
-    ${can('photos') && !['Entregue', 'Cancelado'].includes(o.status) ? `
-      <div class="fg">
-        <input type="file" id="f-fotos" accept="image/*" capture="environment" multiple class="fc">
-        <button class="btn btn-ghost btn-sm" onclick="enviarFotos('${o.id}')"><i class="fas fa-upload"></i> Enviar fotos</button>
-        <span class="stat-lbl">Diagnóstico "Serviço Completo" exige de ${FOTOS_MIN} a ${FOTOS_MAX} fotos.</span>
-      </div>` : ''}
-    <div id="galeria" class="foto-grid"><span class="stat-lbl">Carregando fotos...</span></div>` : ''}
+    <div class="d-divider"></div>
+    <div class="d-section"><i class="fas fa-bolt"></i> Status</div>
+    <div class="d-field"><div class="d-lbl">Status atual</div><div class="d-val">${badgeStatus(o.status)}</div></div>
+    ${statusChips(o)}
 
-    ${temAssinatura() ? `<div class="d-divider"></div>
-    <div class="d-section"><i class="fas fa-signature"></i> Assinatura digital</div>
-    <div id="assinatura-box"><span class="stat-lbl">Carregando assinatura...</span></div>` : ''}
+    <div class="d-divider"></div>
+    <div class="d-section"><i class="fas fa-info-circle"></i> Informações</div>
+    <div class="d-field"><div class="d-lbl">Abertura</div><div class="d-val">${fmtDate(o.opening_date)}</div></div>
+    <div class="d-field"><div class="d-lbl">Agendamento</div>
+      <div class="d-val">${o.scheduled_at ? fmtDateTime(o.scheduled_at) : 'Ainda não agendada'}</div></div>
+    <div class="d-field"><div class="d-lbl">Prazo vigente</div>
+      <div class="d-val">${esc(sla.rotulo)}: ${o.sla_due_at ? fmtDateTime(o.sla_due_at) : '—'}
+        <span class="badge ${sla.cls}">${esc(sla.texto)}</span></div></div>
+    <div class="d-field"><div class="d-lbl">Técnico Responsável</div><div class="d-val">${esc(o.technician_name || 'Não atribuído')}</div></div>
+    <div class="d-field"><div class="d-lbl">Aberta por</div><div class="d-val">${esc(o.created_by_name || '—')}</div></div>
+
+    ${o.service_type === 'externo' ? `
+    <div class="d-divider"></div>
+    <div class="d-section"><i class="fas fa-location-dot"></i> Local do atendimento</div>
+    <div class="d-field"><div class="d-lbl">Endereço</div><div class="d-val">${esc(enderecoTexto(o) || '—')}</div></div>
+    <div class="d-field"><div class="d-lbl">Coordenadas</div>
+      <div class="d-val mono">${o.latitude ? `${o.latitude}, ${o.longitude}` : 'Não geocodificado'}</div></div>
+    <div class="d-field"><div class="d-lbl">Deslocamento</div><div class="d-val">${fmtDateTime(o.departure_date)}</div></div>
+    <div class="d-field"><div class="d-lbl">Chegada</div><div class="d-val">${fmtDateTime(o.arrival_date)}</div></div>
+    <div class="d-field"><div class="d-lbl">Início da execução</div><div class="d-val">${fmtDateTime(o.execution_start_date)}</div></div>
+    <a class="btn btn-primary btn-maps" target="_blank" rel="noopener" href="${mapsUrl(o)}">
+      <i class="fas fa-map-location-dot"></i> Abrir no Google Maps</a>` : ''}
+
+    ${SLA_ENCERRADAS.includes(o.status) && temFotos() ? `
+    <div class="d-divider"></div>
+    <div class="d-section"><i class="fas fa-camera"></i> Evidências fotográficas</div>
+    <div id="galeria" class="foto-grid"><span class="stat-lbl">Carregando fotos...</span></div>` : ''}
 
     <div class="d-divider"></div>
     <div class="d-section"><i class="fas fa-clock-rotate-left"></i> Histórico</div>
@@ -227,18 +250,14 @@ async function viewOS(id) {
 
   const acoes = [];
   if (canDelete()) acoes.push(`<button class="btn btn-del btn-sm" onclick="deleteOS('${o.id}')"><i class="fas fa-trash"></i> Excluir</button>`);
-  if (can('orderStatus') && !SLA_ENCERRADAS.includes(o.status)) {
-    acoes.push(`<button class="btn btn-ghost btn-sm" onclick="agendarOS('${o.id}')"><i class="fas fa-calendar-plus"></i> ${o.scheduled_at ? 'Reagendar' : 'Agendar'}</button>`);
+  if (can('orders')) acoes.push(`<button class="btn btn-ghost btn-sm" onclick="editOS('${o.id}')"><i class="fas fa-edit"></i> Editar</button>`);
+  if (can('orderStatus') && (TRANSICOES[o.status] || []).includes('Finalizado')) {
+    acoes.push(`<button class="btn btn-primary btn-sm" onclick="abrirFinalizacao('${o.id}')"><i class="fas fa-check"></i> Finalizar O.S.</button>`);
   }
-  if (can('orderStatus') && (TRANSICOES[o.status] || []).length) {
-    acoes.push(`<button class="btn btn-ghost btn-sm" onclick="statusOS('${o.id}')"><i class="fas fa-sync"></i> Andamento</button>`);
-  }
-  if (can('orders')) acoes.push(`<button class="btn btn-primary btn-sm" onclick="editOS('${o.id}')"><i class="fas fa-edit"></i> Editar</button>`);
   document.getElementById('drawer-ft').innerHTML = acoes.join('');
   openDrawer();
 
-  if (temFotos()) carregarFotos(o.id);
-  if (temAssinatura()) carregarAssinatura(o.id);
+  if (document.getElementById('galeria')) carregarFotos(o.id);
   carregarHistorico(o.id);
 }
 
@@ -390,11 +409,12 @@ function limparAssinatura() {
   iniciarCanvas();
 }
 
-async function salvarAssinatura(id) {
+async function salvarAssinatura(id, silencioso = false) {
   const canvas = document.getElementById('canvas-assinatura');
-  if (!canvas || canvasVazio) return toast('Assine antes de salvar.', 'err');
+  if (!canvas || canvasVazio) { toast('Assine antes de salvar.', 'err'); return false; }
   const signature = canvas.toDataURL('image/png');
-  const signerName = document.getElementById('f-assinante').value.trim();
+  const campoNome = document.getElementById('f-assinante');
+  const signerName = campoNome ? campoNome.value.trim() : '';
 
   const res = await authFetch(`${API_URL}/service-orders/${id}/signature`, {
     method: 'POST',
@@ -402,10 +422,12 @@ async function salvarAssinatura(id) {
     body: JSON.stringify({ signature, signerName }),
   });
   const dados = await res.json();
-  if (!res.ok) return toast(dados.error || 'Erro ao salvar a assinatura.', 'err');
+  if (!res.ok) { toast(dados.error || 'Erro ao salvar a assinatura.', 'err'); return false; }
+  if (silencioso) return true;
   toast('Assinatura registrada!');
   await fetchDados();
   viewOS(id);
+  return true;
 }
 
 // ── Auditoria ──
@@ -426,52 +448,164 @@ async function carregarHistorico(id) {
   }
 }
 
-// ── Andamento ──
-function statusOS(id) {
-  const o = orders.find((x) => x.id === id);
-  if (!o) return;
+// ── Andamento rápido (chips direto no painel da O.S.) ──
+function statusChips(o) {
+  if (!can('orderStatus')) return '';
   const opcoes = TRANSICOES[o.status] || [];
+  const podeAgendar = !SLA_ENCERRADAS.includes(o.status);
+  const chips = [];
 
-  document.getElementById('drawer-title').textContent = `O.S. #${o.number}`;
-  document.getElementById('drawer-mode').textContent = 'Atualizar andamento';
-  document.getElementById('drawer-body').innerHTML = `
-    <div class="d-section"><i class="fas fa-sync"></i> Andamento do Serviço</div>
-    <div class="d-field"><div class="d-lbl">Status atual</div><div class="d-val">${badgeStatus(o.status)}</div></div>
-    ${opcoes.length ? `<div class="fg"><label>Próximo status *</label>
-      <select class="fc" id="f-status">
-        ${opcoes.map((s) => `<option value="${s}">${s}</option>`).join('')}
-      </select></div>` : '<p class="stat-lbl">Esta ordem de serviço já está encerrada.</p>'}
-    ${o.status === 'Aberto' ? '<p class="stat-lbl">Agende o atendimento para dar andamento — antes disso, só é possível cancelar.</p>' : ''}
-    <div class="fg"><label>Diagnóstico (obrigatório ao finalizar)</label>
-      <select class="fc" id="f-diagnostico">
-        <option value="">Selecione</option>
-        <option value="Serviço Completo" ${o.diagnosis === 'Serviço Completo' ? 'selected' : ''}>Serviço Completo (exige evidências fotográficas)</option>
-        <option value="Encerramento Interno" ${o.diagnosis === 'Encerramento Interno' ? 'selected' : ''}>Encerramento Interno (sem fotos obrigatórias)</option>
-      </select></div>
-    <div class="fg"><label>Solução aplicada (obrigatória ao finalizar)</label>
-      <textarea class="fc" id="f-solucao" rows="5" placeholder="Descreva o serviço executado...">${esc(o.solution || '')}</textarea></div>`;
-  document.getElementById('drawer-ft').innerHTML = `
-    <button class="btn btn-ghost btn-sm" onclick="viewOS('${id}')">Cancelar</button>
-    ${opcoes.length ? `<button class="btn btn-primary btn-sm" onclick="saveStatus('${id}')"><i class="fas fa-save"></i> Salvar</button>` : ''}`;
-  openDrawer();
+  if (podeAgendar) {
+    chips.push(`<button class="chip chip-alt" onclick="agendarOS('${o.id}')">
+      <i class="fas fa-calendar-plus"></i> ${o.scheduled_at ? 'Reagendar' : 'Agendar'}</button>`);
+  }
+  opcoes.forEach((s) => {
+    const destaque = s === 'Finalizado' ? 'chip-ok' : (s === 'Cancelado' ? 'chip-del' : '');
+    chips.push(`<button class="chip ${destaque}" onclick="quickStatus('${o.id}','${s}')">${esc(s)}</button>`);
+  });
+
+  if (!chips.length) return '<p class="stat-lbl">Esta ordem de serviço já está encerrada.</p>';
+  return `<div class="status-flow">${chips.join('')}</div>
+    <span class="stat-lbl">Toque no próximo passo para atualizar o andamento em um clique.</span>`;
 }
 
-async function saveStatus(id) {
-  const statusField = document.getElementById('f-status');
-  const status = statusField ? statusField.value : undefined;
-  const solution = document.getElementById('f-solucao').value.trim();
-  const diagnosis = document.getElementById('f-diagnostico').value;
-  const o = orders.find((x) => x.id === id) || {};
+async function quickStatus(id, status) {
+  if (status === 'Finalizado') return abrirFinalizacao(id);
+  try {
+    const res = await authFetch(`${API_URL}/service-orders/${id}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+    const dados = await res.json();
+    if (!res.ok) return toast(dados.error || 'Erro ao atualizar.', 'err');
+    toast(`Status: ${status}`);
+    await fetchDados();
+    viewOS(id);
+  } catch {
+    toast('Erro de conexão.', 'err');
+  }
+}
 
-  if (status === 'Finalizado') {
-    if (solution.length < 5) return toast('Descreva o serviço executado para finalizar a O.S.', 'err');
-    if (!diagnosis && !o.diagnosis) return toast('Informe o diagnóstico do encerramento.', 'err');
-    const diag = diagnosis || o.diagnosis;
-    if (temFotos() && diag === 'Serviço Completo' && (o.photo_count || 0) < FOTOS_MIN) {
-      return toast(`Registre ao menos ${FOTOS_MIN} evidências fotográficas antes de finalizar.`, 'err');
+// ── Finalização da O.S. (fotos e assinatura só aqui) ──
+function fecharModal() {
+  const m = document.getElementById('modal-final');
+  if (m) m.remove();
+}
+
+function corpoEvidencias(o, diag) {
+  const precisaFotos = temFotos() && diag === 'Serviço Completo';
+  const precisaAss = temAssinatura();
+  if (!precisaFotos && !precisaAss) {
+    return '<p class="stat-lbl">Nenhuma evidência é necessária para este diagnóstico.</p>';
+  }
+  return `
+    ${precisaFotos ? `
+      <div class="d-divider"></div>
+      <div class="d-section"><i class="fas fa-camera"></i> Fotos
+        <span id="foto-contador" class="stat-lbl">(0/${FOTOS_MAX})</span></div>
+      <div class="fg">
+        <input type="file" id="f-fotos" accept="image/*" capture="environment" multiple class="fc">
+        <button class="btn btn-ghost" onclick="enviarFotos('${o.id}')"><i class="fas fa-upload"></i> Adicionar fotos</button>
+        <span class="stat-lbl">Obrigatório de ${FOTOS_MIN} a ${FOTOS_MAX} fotos.</span>
+      </div>
+      <div id="galeria" class="foto-grid"><span class="stat-lbl">Carregando fotos...</span></div>` : ''}
+    ${precisaAss ? `
+      <div class="d-divider"></div>
+      <div class="d-section"><i class="fas fa-signature"></i> Assinatura do cliente
+        ${o.service_type === 'externo' ? '(obrigatória)' : '(opcional)'}</div>
+      <div id="assinatura-atual"></div>
+      <div class="fg"><label>Nome de quem assina</label>
+        <input type="text" class="fc" id="f-assinante" value="${esc(o.customer_name || '')}"></div>
+      <canvas id="canvas-assinatura" class="assinatura-canvas" width="600" height="220"></canvas>
+      <button class="btn btn-ghost btn-sm" onclick="limparAssinatura()"><i class="fas fa-eraser"></i> Limpar</button>` : ''}`;
+}
+
+function renderEvidencias(id) {
+  const o = orders.find((x) => x.id === id) || {};
+  const diag = document.getElementById('f-diagnostico').value || o.diagnosis || '';
+  const box = document.getElementById('bloco-evidencias');
+  box.innerHTML = corpoEvidencias(o, diag);
+  if (document.getElementById('galeria')) carregarFotos(id);
+  if (document.getElementById('canvas-assinatura')) {
+    iniciarCanvas();
+    marcarAssinaturaExistente(id);
+  }
+}
+
+async function marcarAssinaturaExistente(id) {
+  const box = document.getElementById('assinatura-atual');
+  if (!box) return;
+  try {
+    const res = await authFetch(`${API_URL}/service-orders/${id}/signature`);
+    if (!res.ok) return;
+    const { assinatura } = await res.json();
+    if (assinatura) {
+      box.innerHTML = `<img class="assinatura-img" src="${esc(assinatura.signature_url)}" alt="Assinatura registrada">
+        <div class="stat-lbl">Assinatura já registrada — assine novamente apenas se quiser substituir.</div>`;
     }
-    if (temAssinatura() && o.service_type === 'externo' && !(o.signature_count > 0)) {
-      return toast('Capture a assinatura do cliente antes de finalizar.', 'err');
+  } catch { /* silencioso */ }
+}
+
+function abrirFinalizacao(id) {
+  const o = orders.find((x) => x.id === id);
+  if (!o) return;
+  fecharModal();
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-ov';
+  modal.id = 'modal-final';
+  modal.innerHTML = `
+    <div class="modal-box" role="dialog" aria-label="Finalizar ordem de serviço">
+      <div class="modal-hd">
+        <strong>Finalizar O.S. #${esc(o.number)}</strong>
+        <button class="drawer-x" onclick="fecharModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="fg"><label>Diagnóstico *</label>
+          <select class="fc" id="f-diagnostico">
+            <option value="">Selecione</option>
+            <option value="Serviço Completo" ${o.diagnosis === 'Serviço Completo' ? 'selected' : ''}>Serviço Completo (exige fotos)</option>
+            <option value="Encerramento Interno" ${o.diagnosis === 'Encerramento Interno' ? 'selected' : ''}>Encerramento Interno (sem evidências)</option>
+          </select></div>
+        <div class="fg"><label>Solução aplicada *</label>
+          <textarea class="fc" id="f-solucao-final" rows="4" placeholder="Descreva o serviço executado...">${esc(o.solution || '')}</textarea></div>
+        <div id="bloco-evidencias"></div>
+      </div>
+      <div class="modal-ft">
+        <button class="btn btn-ghost" onclick="fecharModal()">Cancelar</button>
+        <button class="btn btn-primary" onclick="confirmarFinalizacao('${o.id}')"><i class="fas fa-check"></i> Finalizar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  document.getElementById('f-diagnostico').addEventListener('change', () => renderEvidencias(id));
+  renderEvidencias(id);
+}
+
+async function confirmarFinalizacao(id) {
+  const o = orders.find((x) => x.id === id) || {};
+  const diagnosis = document.getElementById('f-diagnostico').value || o.diagnosis || '';
+  const solution = document.getElementById('f-solucao-final').value.trim();
+
+  if (!diagnosis) return toast('Selecione o diagnóstico.', 'err');
+  if (solution.length < 5) return toast('Descreva o serviço executado.', 'err');
+
+  // Fotos: obrigatórias apenas no diagnóstico "Serviço Completo".
+  if (temFotos() && diagnosis === 'Serviço Completo') {
+    const total = document.querySelectorAll('#galeria .foto-item').length;
+    if (total < FOTOS_MIN) return toast(`Envie de ${FOTOS_MIN} a ${FOTOS_MAX} fotos antes de finalizar.`, 'err');
+    if (total > FOTOS_MAX) return toast(`Máximo de ${FOTOS_MAX} fotos.`, 'err');
+  }
+
+  // Assinatura: obrigatória no atendimento externo.
+  if (temAssinatura()) {
+    const canvas = document.getElementById('canvas-assinatura');
+    if (canvas && !canvasVazio) {
+      const ok = await salvarAssinatura(id, true);
+      if (!ok) return;
+    } else if (o.service_type === 'externo' && !(o.signature_count > 0)
+      && !document.querySelector('#assinatura-atual img')) {
+      return toast('Capture a assinatura do cliente para finalizar o atendimento externo.', 'err');
     }
   }
 
@@ -479,11 +613,12 @@ async function saveStatus(id) {
     const res = await authFetch(`${API_URL}/service-orders/${id}/status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status, solution, diagnosis }),
+      body: JSON.stringify({ status: 'Finalizado', solution, diagnosis }),
     });
     const dados = await res.json();
-    if (!res.ok) return toast(dados.error || 'Erro ao atualizar.', 'err');
-    toast('Andamento atualizado!');
+    if (!res.ok) return toast(dados.error || 'Erro ao finalizar.', 'err');
+    toast('Ordem de serviço finalizada!');
+    fecharModal();
     closeDrawer();
     fetchDados();
   } catch {

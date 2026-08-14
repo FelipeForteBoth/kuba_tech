@@ -16,16 +16,14 @@ const listByRole = (tenantId, roles) =>
   );
 
 /**
- * Lista para a abertura de O.S.: TODOS os usuários com perfil Técnico da
- * empresa (ativos e inativos são retornados, com a flag `active`), somados
- * aos administradores ativos, que também podem executar atendimentos.
+ * Lista para a abertura de O.S.: SOMENTE usuários com o perfil Técnico
+ * da empresa e que estejam ativos.
  */
 const listTechnicians = (tenantId) =>
   db.all(
     `SELECT ${PUBLIC_COLUMNS} FROM users
-      WHERE tenant_id = $1
-        AND (role = 'technician' OR (role = 'company_admin' AND active = TRUE))
-      ORDER BY (role = 'technician') DESC, name`,
+      WHERE tenant_id = $1 AND role = 'technician' AND active = TRUE
+      ORDER BY name`,
     [tenantId],
   );
 

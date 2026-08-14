@@ -163,8 +163,8 @@ async function validatePayload(req, current = null) {
 
   if (technicianId) {
     const technician = await userModel.findById(req.tenantId, technicianId);
-    if (!technician || ![ROLES.TECHNICIAN, ROLES.COMPANY_ADMIN].includes(technician.role)) {
-      throw new AppError('Selecione um técnico válido da empresa.');
+    if (!technician || technician.role !== ROLES.TECHNICIAN || technician.active === false) {
+      throw new AppError('Selecione um usuário com o perfil Técnico da empresa.');
     }
   }
 
@@ -228,8 +228,8 @@ async function schedule(req, res) {
   if (technicianId) {
     if (!isValidUUID(technicianId)) throw new AppError('Técnico inválido.');
     const technician = await userModel.findById(req.tenantId, technicianId);
-    if (!technician || ![ROLES.TECHNICIAN, ROLES.COMPANY_ADMIN].includes(technician.role)) {
-      throw new AppError('Selecione um técnico válido da empresa.');
+    if (!technician || technician.role !== ROLES.TECHNICIAN || technician.active === false) {
+      throw new AppError('Selecione um usuário com o perfil Técnico da empresa.');
     }
   }
 
