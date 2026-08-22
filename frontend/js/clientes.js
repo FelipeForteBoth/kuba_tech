@@ -1,7 +1,10 @@
-// Tela de Clientes — CRUD consumindo /api/customers (escopo por empresa).
+// Tela de Clientes — Pessoa Física (CPF) e Pessoa Jurídica (CNPJ).
 let customers = [];
 let sortDir = 1;
 let editingId = null;
+
+const doc = (c) => c.document_number || c.cpf || '—';
+const tipoDoc = (c) => (c.document_type || 'CPF');
 
 async function fetchClientes() {
   try {
@@ -27,8 +30,9 @@ function render(data) {
   }
   tbody.innerHTML = data.map((c) => `
     <tr onclick="viewCliente('${c.id}')">
-      <td><strong>${esc(c.name)}</strong></td>
-      <td class="td2 mono">${esc(c.cpf)}</td>
+      <td><strong>${esc(c.name)}</strong>
+        ${c.company_name ? `<br><span class="stat-lbl">${esc(c.company_name)}</span>` : ''}</td>
+      <td class="td2 mono"><span class="badge badge-todo">${esc(tipoDoc(c))}</span> ${esc(doc(c))}</td>
       <td class="td2">${esc(c.phone)}</td>
       <td class="td2">${esc(c.email)}</td>
       <td><i class="fas fa-chevron-right rarrow"></i></td>
@@ -39,7 +43,8 @@ function applyFilter() {
   const q = document.getElementById('search-input').value.toLowerCase();
   const data = customers.filter((c) =>
     c.name.toLowerCase().includes(q) ||
-    (c.cpf || '').includes(q) ||
+    (c.company_name || '').toLowerCase().includes(q) ||
+    String(doc(c)).includes(q) ||
     (c.phone || '').includes(q) ||
     (c.email || '').toLowerCase().includes(q));
   data.sort((a, b) => sortDir * a.name.localeCompare(b.name, 'pt-BR'));
@@ -51,16 +56,24 @@ function viewCliente(id) {
   if (!c) return;
   editingId = null;
 
+  const endereco = [c.address, c.neighborhood, c.city, c.state, c.zip_code].filter(Boolean).join(', ');
+
   document.getElementById('drawer-title').textContent = c.name;
-  document.getElementById('drawer-mode').textContent = 'Detalhes do Cliente';
+  document.getElementById('drawer-mode').textContent =
+    tipoDoc(c) === 'CNPJ' ? 'Cliente Pessoa Jurídica' : 'Cliente Pessoa Física';
   document.getElementById('drawer-body').innerHTML = `
-    <div class="d-section"><i class="fas fa-user"></i> Informações Pessoais</div>
-    <div class="d-field"><div class="d-lbl">Nome Completo</div><div class="d-val">${esc(c.name)}</div></div>
-    <div class="d-field"><div class="d-lbl">CPF</div><div class="d-val mono">${esc(c.cpf)}</div></div>
+    <div class="d-section"><i class="fas fa-id-card"></i> Identificação</div>
+    <div class="d-field"><div class="d-lbl">${tipoDoc(c) === 'CNPJ' ? 'Contato / Nome fantasia' : 'Nome completo'}</div>
+      <div class="d-val">${esc(c.name)}</div></div>
+    ${c.company_name ? `<div class="d-field"><div class="d-lbl">Razão social</div><div class="d-val">${esc(c.company_name)}</div></div>` : ''}
+    <div class="d-field"><div class="d-lbl">${esc(tipoDoc(c))}</div><div class="d-val mono">${esc(doc(c))}</div></div>
     <div class="d-divider"></div>
     <div class="d-section"><i class="fas fa-address-book"></i> Contato</div>
     <div class="d-field"><div class="d-lbl">Telefone</div><div class="d-val">${esc(c.phone)}</div></div>
-    <div class="d-field"><div class="d-lbl">E-mail</div><div class="d-val">${esc(c.email)}</div></div>`;
+    <div class="d-field"><div class="d-lbl">E-mail</div><div class="d-val">${esc(c.email)}</div></div>
+    ${endereco ? `<div class="d-divider"></div>
+    <div class="d-section"><i class="fas fa-location-dot"></i> Endereço</div>
+    <div class="d-field"><div class="d-lbl">Endereço</div><div class="d-val">${esc(endereco)}</div></div>` : ''}`;
 
   const acoes = [];
   if (canDelete()) acoes.push(`<button class="btn btn-del btn-sm" onclick="deleteCliente('${c.id}')"><i class="fas fa-trash"></i> Excluir</button>`);
@@ -74,6 +87,7 @@ function newCliente() {
   document.getElementById('drawer-title').textContent = 'Novo Cliente';
   document.getElementById('drawer-mode').textContent = 'Cadastro';
   document.getElementById('drawer-body').innerHTML = formHTML(null);
+  bindDocumento();
   document.getElementById('drawer-ft').innerHTML = `
     <button class="btn btn-ghost btn-sm" onclick="closeDrawer()">Cancelar</button>
     <button class="btn btn-primary btn-sm" onclick="saveCliente()"><i class="fas fa-save"></i> Salvar</button>`;
@@ -87,6 +101,7 @@ function editCliente(id) {
   document.getElementById('drawer-title').textContent = 'Editar Cliente';
   document.getElementById('drawer-mode').textContent = 'Edição';
   document.getElementById('drawer-body').innerHTML = formHTML(c);
+  bindDocumento();
   document.getElementById('drawer-ft').innerHTML = `
     <button class="btn btn-ghost btn-sm" onclick="viewCliente('${id}')">Cancelar</button>
     <button class="btn btn-primary btn-sm" onclick="saveCliente()"><i class="fas fa-save"></i> Salvar</button>`;
@@ -94,44 +109,179 @@ function editCliente(id) {
 }
 
 function formHTML(c) {
+  const tipo = c ? tipoDoc(c) : 'CPF';
+  const pj = tipo === 'CNPJ';
   return `
-    <div class="d-section"><i class="fas fa-user"></i> Informações Pessoais</div>
-    <div class="fg"><label>Nome Completo *</label>
-      <input type="text" class="fc" id="f-nome" value="${esc(c ? c.name : '')}" placeholder="Nome e sobrenome"></div>
-    <div class="fg"><label>CPF *</label>
-      <input type="text" class="fc" id="f-cpf" data-mask="cpf" maxlength="14"
-        value="${esc(c ? c.cpf : '')}" ${c ? 'disabled' : ''} placeholder="000.000.000-00"></div>
+    <div class="d-section"><i class="fas fa-id-card"></i> Tipo do documento</div>
+    <div class="fg">
+      <div class="radio-row">
+        <label class="radio-opt"><input type="radio" name="tipo-doc" value="CPF" ${pj ? '' : 'checked'} ${c ? 'disabled' : ''}> Pessoa Física (CPF)</label>
+        <label class="radio-opt"><input type="radio" name="tipo-doc" value="CNPJ" ${pj ? 'checked' : ''} ${c ? 'disabled' : ''}> Pessoa Jurídica (CNPJ)</label>
+      </div>
+    </div>
+    <div class="fg"><label id="lbl-doc">${pj ? 'CNPJ *' : 'CPF *'}</label>
+      <div class="inline-row">
+        <input type="text" class="fc" id="f-doc" data-mask="${pj ? 'cnpj' : 'cpf'}" maxlength="${pj ? 18 : 14}"
+          value="${esc(c ? doc(c) : '')}" ${c ? 'disabled' : ''}
+          placeholder="${pj ? '00.000.000/0000-00' : '000.000.000-00'}">
+        <button type="button" class="btn btn-ghost btn-sm" id="btn-consulta" ${c ? 'disabled' : ''}>
+          <i class="fas fa-magnifying-glass"></i> Consultar</button>
+      </div>
+      <span class="stat-lbl" id="doc-hint">${pj ? 'A razão social e o endereço são preenchidos automaticamente pela Receita Federal.' : 'Validação pelos dígitos verificadores oficiais.'}</span></div>
+
+    <div class="fg" id="fg-razao" style="${pj ? '' : 'display:none;'}">
+      <label>Razão social *</label>
+      <input type="text" class="fc" id="f-razao" value="${esc(c ? (c.company_name || '') : '')}" placeholder="Razão social da empresa"></div>
+
     <div class="d-divider"></div>
-    <div class="d-section"><i class="fas fa-address-book"></i> Contato</div>
+    <div class="d-section"><i class="fas fa-user"></i> Contato</div>
+    <div class="fg"><label id="lbl-nome">${pj ? 'Nome do contato / fantasia *' : 'Nome completo *'}</label>
+      <input type="text" class="fc" id="f-nome" value="${esc(c ? c.name : '')}" placeholder="${pj ? 'Nome fantasia ou responsável' : 'Nome e sobrenome'}"></div>
     <div class="fg"><label>Telefone *</label>
       <input type="text" class="fc" id="f-tel" data-mask="phone" maxlength="15"
         value="${esc(c ? c.phone : '')}" placeholder="(00) 00000-0000"></div>
     <div class="fg"><label>E-mail *</label>
-      <input type="email" class="fc" id="f-email" value="${esc(c ? c.email : '')}" placeholder="email@exemplo.com"></div>`;
+      <input type="email" class="fc" id="f-email" value="${esc(c ? c.email : '')}" placeholder="email@exemplo.com"></div>
+
+    <div class="d-divider"></div>
+    <div class="d-section"><i class="fas fa-location-dot"></i> Endereço (opcional)</div>
+    <div class="fg"><label>CEP</label>
+      <input type="text" class="fc" id="f-cep" maxlength="9" value="${esc(c ? (c.zip_code || '') : '')}" placeholder="00000-000"></div>
+    <div class="fg"><label>Rua</label>
+      <input type="text" class="fc" id="f-rua" value="${esc(c ? (c.address || '') : '')}"></div>
+    <div class="grid-2">
+      <div class="fg"><label>Bairro</label>
+        <input type="text" class="fc" id="f-bairro" value="${esc(c ? (c.neighborhood || '') : '')}"></div>
+      <div class="fg"><label>Cidade</label>
+        <input type="text" class="fc" id="f-cidade" value="${esc(c ? (c.city || '') : '')}"></div>
+    </div>
+    <div class="fg"><label>Estado</label>
+      <input type="text" class="fc" id="f-estado" maxlength="2" value="${esc(c ? (c.state || '') : '')}"></div>`;
+}
+
+function tipoSelecionado() {
+  const marcado = document.querySelector('input[name="tipo-doc"]:checked');
+  return marcado ? marcado.value : 'CPF';
+}
+
+function bindDocumento() {
+  document.querySelectorAll('input[name="tipo-doc"]').forEach((radio) => {
+    radio.addEventListener('change', () => {
+      const pj = tipoSelecionado() === 'CNPJ';
+      const campo = document.getElementById('f-doc');
+      campo.value = '';
+      campo.dataset.mask = pj ? 'cnpj' : 'cpf';
+      campo.maxLength = pj ? 18 : 14;
+      campo.placeholder = pj ? '00.000.000/0000-00' : '000.000.000-00';
+      document.getElementById('lbl-doc').textContent = pj ? 'CNPJ *' : 'CPF *';
+      document.getElementById('lbl-nome').textContent = pj ? 'Nome do contato / fantasia *' : 'Nome completo *';
+      document.getElementById('fg-razao').style.display = pj ? '' : 'none';
+      document.getElementById('doc-hint').textContent = pj
+        ? 'A razão social e o endereço são preenchidos automaticamente pela Receita Federal.'
+        : 'Validação pelos dígitos verificadores oficiais.';
+    });
+  });
+
+  const cep = document.getElementById('f-cep');
+  if (cep) {
+    cep.addEventListener('input', () => { cep.value = maskCEP(cep.value); });
+    cep.addEventListener('blur', async () => {
+      if (onlyDigits(cep.value).length !== 8) return;
+      try {
+        const r = await consultarCEP(cep.value);
+        if (r.data) {
+          document.getElementById('f-rua').value = r.data.logradouro || '';
+          document.getElementById('f-bairro').value = r.data.bairro || '';
+          document.getElementById('f-cidade').value = r.data.cidade || '';
+          document.getElementById('f-estado').value = r.data.estado || '';
+        }
+      } catch (e) { toast(e.message, 'err'); }
+    });
+  }
+
+  const botao = document.getElementById('btn-consulta');
+  if (botao) botao.addEventListener('click', consultarDocumento);
+}
+
+async function consultarDocumento() {
+  const tipo = tipoSelecionado();
+  const valor = document.getElementById('f-doc').value;
+
+  if (tipo === 'CPF') {
+    if (!isValidCPF(valor)) return toast('CPF inválido: confira os dígitos verificadores.', 'err');
+    return toast('CPF válido.');
+  }
+
+  if (!isValidCNPJ(valor)) return toast('CNPJ inválido: confira os dígitos verificadores.', 'err');
+  try {
+    const r = await consultarCNPJ(valor);
+    if (r.unavailable) return toast('CNPJ válido (consulta à Receita indisponível agora).');
+    const d = r.data || {};
+    document.getElementById('f-razao').value = d.razaoSocial || '';
+    if (!document.getElementById('f-nome').value) document.getElementById('f-nome').value = d.nomeFantasia || d.razaoSocial || '';
+    document.getElementById('f-cep').value = d.cep ? maskCEP(d.cep) : '';
+    document.getElementById('f-rua').value = d.logradouro || '';
+    document.getElementById('f-bairro').value = d.bairro || '';
+    document.getElementById('f-cidade').value = d.cidade || '';
+    document.getElementById('f-estado').value = d.estado || '';
+    toast('CNPJ localizado na Receita Federal.');
+  } catch (e) {
+    toast(e.message, 'err');
+  }
 }
 
 async function saveCliente() {
-  const cpfField = document.getElementById('f-cpf');
+  const docField = document.getElementById('f-doc');
   const telField = document.getElementById('f-tel');
-  if (!cpfField.disabled) cpfField.value = maskCPF(cpfField.value);
+  const documentType = editingId
+    ? (customers.find((x) => x.id === editingId) || {}).document_type || 'CPF'
+    : tipoSelecionado();
+
+  if (!docField.disabled) {
+    docField.value = documentType === 'CNPJ' ? maskCNPJ(docField.value) : maskCPF(docField.value);
+  }
   telField.value = maskPhone(telField.value);
 
-  const cpf = cpfField.value.trim();
+  const documentNumber = docField.value.trim();
   const name = document.getElementById('f-nome').value.trim();
+  const companyName = (document.getElementById('f-razao') || {}).value || '';
   const phone = telField.value.trim();
   const email = document.getElementById('f-email').value.trim();
 
-  if (!isValidName(name)) return toast('Informe o nome completo (nome e sobrenome).', 'err');
-  if (!editingId && !isValidCPF(cpf)) return toast('CPF inválido. Confira os números digitados.', 'err');
+  if (documentType === 'CPF') {
+    if (!isValidName(name)) return toast('Informe o nome completo (nome e sobrenome).', 'err');
+  } else if (name.length < 3) {
+    return toast('Informe o nome do contato ou nome fantasia.', 'err');
+  }
+  if (!editingId && !isValidDocument(documentNumber, documentType)) {
+    return toast(`${documentType} inválido: os dígitos verificadores não conferem.`, 'err');
+  }
+  if (!editingId && documentType === 'CNPJ' && companyName.trim().length < 3) {
+    return toast('Informe (ou consulte) a razão social da empresa.', 'err');
+  }
   if (!isValidPhone(phone)) return toast('Telefone inválido. Use (00) 00000-0000.', 'err');
   if (!isValidEmail(email)) return toast('E-mail inválido.', 'err');
+
+  const payload = {
+    documentType,
+    documentNumber,
+    companyName: companyName.trim() || null,
+    name,
+    phone,
+    email,
+    zipCode: document.getElementById('f-cep').value.trim(),
+    address: document.getElementById('f-rua').value.trim(),
+    neighborhood: document.getElementById('f-bairro').value.trim(),
+    city: document.getElementById('f-cidade').value.trim(),
+    state: document.getElementById('f-estado').value.trim().toUpperCase(),
+  };
 
   const url = editingId ? `${API_URL}/customers/${editingId}` : `${API_URL}/customers`;
   try {
     const res = await authFetch(url, {
       method: editingId ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cpf, name, phone, email }),
+      body: JSON.stringify(payload),
     });
     const dados = await res.json();
     if (!res.ok) return toast(dados.error || 'Erro ao salvar.', 'err');
@@ -144,7 +294,7 @@ async function saveCliente() {
 }
 
 async function deleteCliente(id) {
-  if (!confirm('Excluir este cliente? Os equipamentos e ordens de serviço vinculados também serão removidos.')) return;
+  if (!confirm('Excluir este cliente? Ele deixará de aparecer nas listagens (o histórico é preservado).')) return;
   try {
     const res = await authFetch(`${API_URL}/customers/${id}`, { method: 'DELETE' });
     const dados = await res.json();

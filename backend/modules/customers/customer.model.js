@@ -36,9 +36,14 @@ const create = (tenantId, data) =>
   db.one(
     `INSERT INTO customers
        (tenant_id, cpf, document_type, document_number, name, company_name, phone, email,
+<<<<<<< HEAD
         zip_code, address, neighborhood, city, state,
         trade_name, birth_date, registration_status, cnae, opening_date)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`,
+=======
+        zip_code, address, neighborhood, city, state)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+>>>>>>> 2d4a93d61ca1f6dbbb8d08174f869fa5963b3124
     [
       tenantId,
       data.documentType === 'CPF' ? data.documentNumber : null,
@@ -53,11 +58,14 @@ const create = (tenantId, data) =>
       data.neighborhood,
       data.city,
       data.state,
+<<<<<<< HEAD
       data.tradeName || null,
       data.birthDate || null,
       data.registrationStatus || null,
       data.cnae || null,
       data.openingDate || null,
+=======
+>>>>>>> 2d4a93d61ca1f6dbbb8d08174f869fa5963b3124
     ],
   );
 
@@ -65,13 +73,20 @@ const update = (tenantId, id, data) =>
   db.one(
     `UPDATE customers
         SET name = $3, company_name = $4, phone = $5, email = $6,
+<<<<<<< HEAD
             zip_code = $7, address = $8, neighborhood = $9, city = $10, state = $11,
             trade_name = COALESCE($12, trade_name), birth_date = COALESCE($13, birth_date)
+=======
+            zip_code = $7, address = $8, neighborhood = $9, city = $10, state = $11
+>>>>>>> 2d4a93d61ca1f6dbbb8d08174f869fa5963b3124
       WHERE tenant_id = $1 AND id = $2 AND ${ACTIVE} RETURNING *`,
     [
       tenantId, id, data.name, data.companyName, data.phone, data.email,
       data.zipCode, data.address, data.neighborhood, data.city, data.state,
+<<<<<<< HEAD
       data.tradeName || null, data.birthDate || null,
+=======
+>>>>>>> 2d4a93d61ca1f6dbbb8d08174f869fa5963b3124
     ],
   );
 

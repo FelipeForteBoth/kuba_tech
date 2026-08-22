@@ -9,9 +9,11 @@ async function loadStats() {
     const s = await res.json();
     document.getElementById('s-clientes').textContent = s.clientes;
     document.getElementById('s-devices').textContent = s.equipamentos;
-    document.getElementById('s-todo').textContent = s.ordens['Aguardando Agendamento'];
-    document.getElementById('s-prog').textContent = s.ordens['Em Andamento'];
-    document.getElementById('s-done').textContent = s.ordens.Finalizada;
+    const emAndamento = ['Agendado', 'Em deslocamento', 'No local', 'Em execução', 'Aguardando cliente']
+      .reduce((total, st) => total + (s.ordens[st] || 0), 0);
+    document.getElementById('s-todo').textContent = s.ordens.Aberto || 0;
+    document.getElementById('s-prog').textContent = emAndamento;
+    document.getElementById('s-done').textContent = (s.ordens.Finalizado || 0) + (s.ordens.Entregue || 0);
   } catch (e) {
     console.error(e);
   }
@@ -37,14 +39,7 @@ async function loadData() {
 }
 
 function badgeStatus(s) {
-  const cls = {
-    'Aguardando Agendamento': 'badge-todo',
-    Agendada: 'badge-prog',
-    'Em Andamento': 'badge-prog',
-    Finalizada: 'badge-done',
-    Cancelada: 'badge-del',
-  }[s] || 'badge-todo';
-  return `<span class="badge ${cls}">${esc(s)}</span>`;
+  return osBadge(s);
 }
 
 function fmtDate(d) {

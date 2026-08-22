@@ -20,7 +20,10 @@ const reportRoutes = require('./modules/reports/report.routes');
 const scheduleRoutes = require('./modules/schedule/schedule.routes');
 const portalRoutes = require('./modules/portal/portal.routes');
 const lookupRoutes = require('./modules/lookup/lookup.routes');
+<<<<<<< HEAD
 const billingRoutes = require('./modules/billing/billing.routes');
+=======
+>>>>>>> 2d4a93d61ca1f6dbbb8d08174f869fa5963b3124
 
 const app = express();
 
@@ -48,7 +51,10 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/schedule', scheduleRoutes);
 app.use('/api/portal', portalRoutes);
 app.use('/api/lookup', lookupRoutes);
+<<<<<<< HEAD
 app.use('/api/billing', billingRoutes);
+=======
+>>>>>>> 2d4a93d61ca1f6dbbb8d08174f869fa5963b3124
 
 app.use('/api', (_req, res) => res.status(404).json({ error: 'Recurso não encontrado.' }));
 

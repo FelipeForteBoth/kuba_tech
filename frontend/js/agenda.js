@@ -8,14 +8,7 @@ let tecnicos = [];
 const fmtDateTime = (v) => (v ? new Date(v).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—');
 
 function statusBadge(status) {
-  const map = {
-    'Aguardando Agendamento': 'badge-todo',
-    Agendada: 'badge-prog',
-    'Em Andamento': 'badge-prog',
-    Finalizada: 'badge-done',
-    Cancelada: 'badge-del',
-  };
-  return `<span class="badge ${map[status] || ''}">${esc(status)}</span>`;
+  return osBadge(status);
 }
 
 function equipamento(row) {

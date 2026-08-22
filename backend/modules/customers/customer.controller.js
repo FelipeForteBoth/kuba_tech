@@ -82,6 +82,7 @@ function validateContact(body, documentType) {
   return { name, email, phone: formatPhone(normalizePhone(phoneInput)) };
 }
 
+<<<<<<< HEAD
 /** Dados públicos complementares (Receita Federal / consulta de CPF). */
 function publicFields(body, receita) {
   const data = (value) => (/^\d{4}-\d{2}-\d{2}$/.test(String(value || '').trim()) ? String(value).trim() : null);
@@ -96,6 +97,10 @@ function publicFields(body, receita) {
 
 function addressFields(body, receita) {
   return {
+=======
+function addressFields(body, receita) {
+  return {
+>>>>>>> 2d4a93d61ca1f6dbbb8d08174f869fa5963b3124
     zipCode: optionalText(body.zipCode, 10) || (receita && receita.cep ? receita.cep : null),
     address: optionalText(body.address, 255) || (receita && receita.logradouro) || null,
     neighborhood: optionalText(body.neighborhood, 100) || (receita && receita.bairro) || null,
@@ -108,7 +113,10 @@ async function store(req, res) {
   const doc = await validateDocument(req.body);
   const contact = validateContact(req.body, doc.documentType);
   const address = addressFields(req.body, doc.receita);
+<<<<<<< HEAD
   const publicos = publicFields(req.body, doc.receita);
+=======
+>>>>>>> 2d4a93d61ca1f6dbbb8d08174f869fa5963b3124
 
   if (await model.findByDocument(req.tenantId, doc.documentNumber)) {
     throw new AppError(`Já existe um cliente com este ${doc.documentType} nesta empresa.`, 409);
@@ -120,7 +128,10 @@ async function store(req, res) {
     companyName: doc.companyName,
     ...contact,
     ...address,
+<<<<<<< HEAD
     ...publicos,
+=======
+>>>>>>> 2d4a93d61ca1f6dbbb8d08174f869fa5963b3124
   });
   res.status(201).json(created);
 }
@@ -136,10 +147,14 @@ async function update(req, res) {
     ? (optionalText(req.body.companyName) || current.company_name)
     : null;
 
+<<<<<<< HEAD
   const publicos = publicFields(req.body, null);
   const customer = await model.update(req.tenantId, req.params.id, {
     ...contact, ...address, ...publicos, companyName,
   });
+=======
+  const customer = await model.update(req.tenantId, req.params.id, { ...contact, ...address, companyName });
+>>>>>>> 2d4a93d61ca1f6dbbb8d08174f869fa5963b3124
   res.json(customer);
 }
 
