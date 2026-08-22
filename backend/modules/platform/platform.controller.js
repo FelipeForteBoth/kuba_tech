@@ -2,6 +2,9 @@
 const bcrypt = require('bcryptjs');
 const model = require('./platform.model');
 const authModel = require('../auth/auth.model');
+const billing = require('../billing/billing.controller');
+const billingModel = require('../billing/billing.model');
+const mailer = require('../../shared/mailer');
 const { AppError } = require('../../shared/http');
 const { TENANT_STATUS } = require('../../config/roles');
 const {
@@ -85,6 +88,7 @@ async function destroy(req, res) {
 }
 
 // Suspensão / reativação da assinatura da empresa.
+// Ao suspender, a empresa é avisada automaticamente por e-mail.
 async function updateStatus(req, res) {
   if (!isValidUUID(req.params.id)) throw new AppError('Identificador inválido.');
   const status = String(req.body.status || '').trim();
@@ -92,8 +96,66 @@ async function updateStatus(req, res) {
 
   const updated = await model.updateTenantStatus(req.params.id, status);
   if (!updated) throw new AppError('Empresa não encontrada.', 404);
-  res.json(updated);
+
+  let email = null;
+  if (status === 'suspended') {
+    const assinatura = await billingModel.findSubscription(updated.id);
+    const cobranca = await billingModel.findOpenPayment(updated.id);
+    email = await mailer.sendTemplate(
+      'empresaSuspensa',
+      assinatura.billing_email || assinatura.email,
+      {
+        companyName: assinatura.company_name,
+        planName: assinatura.plan_name,
+        amount: assinatura.monthly_price,
+        dueDate: assinatura.next_due_date,
+        paymentUrl: cobranca && cobranca.checkout_url,
+      },
+      updated.id,
+    );
+  }
+
+  res.json({ ...updated, email });
 }
+
+/**
+ * POST /tenants/:id/charge — o Administrador da Plataforma envia
+ * manualmente a cobrança da mensalidade em atraso por e-mail.
+ */
+async function charge(req, res) {
+  if (!isValidUUID(req.params.id)) throw new AppError('Identificador inválido.');
+  const { assinatura, pagamento } = await billing.gerarCobranca(req.params.id);
+
+  const email = await mailer.sendTemplate(
+    'cobranca',
+    assinatura.billing_email || assinatura.email,
+    {
+      companyName: assinatura.company_name,
+      planName: assinatura.plan_name,
+      amount: assinatura.monthly_price,
+      dueDate: assinatura.next_due_date,
+      paymentUrl: pagamento.checkout_url,
+    },
+    assinatura.id,
+  );
+
+  if (!email.sent && email.reason === 'sem_provedor') {
+    return res.json({
+      message: 'Cobrança registrada. Configure BREVO_API_KEY (ou RESEND_API_KEY) para enviar o e-mail.',
+      pagamento,
+    });
+  }
+  if (!email.sent) throw new AppError('Não foi possível enviar o e-mail de cobrança agora.', 502);
+
+  res.json({ message: `Cobrança enviada para ${assinatura.billing_email || assinatura.email}.`, pagamento });
+}
+
+/** GET /tenants/:id/emails — histórico de e-mails enviados à empresa. */
+async function emails(req, res) {
+  if (!isValidUUID(req.params.id)) throw new AppError('Identificador inválido.');
+  res.json(await mailer.listLogs(req.params.id));
+}
+
 
 async function changePlan(req, res) {
   if (!isValidUUID(req.params.id)) throw new AppError('Identificador inválido.');
@@ -119,4 +181,4 @@ async function metrics(_req, res) {
   res.json(await model.metrics());
 }
 
-module.exports = { tenants, tenant, store, destroy, updateStatus, changePlan, plans, modules, metrics };
+module.exports = { tenants, tenant, store, destroy, updateStatus, changePlan, plans, modules, metrics, charge, emails };

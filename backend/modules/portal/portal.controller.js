@@ -3,7 +3,7 @@ const model = require('./portal.model');
 const { AppError } = require('../../shared/http');
 const { onlyDigits } = require('../../shared/validators');
 
-const STATUS_STEPS = ['Aguardando Agendamento', 'Agendada', 'Em Andamento', 'Finalizada'];
+const STATUS_STEPS = ['Aberto', 'Agendado', 'Em deslocamento', 'No local', 'Em execução', 'Finalizado', 'Entregue'];
 
 // POST /api/portal/consulta { numero, cpf }
 async function lookup(req, res) {
@@ -30,7 +30,7 @@ async function lookup(req, res) {
     atualizadoEm: order.updated_at,
     atrasada:
       !order.closed_at &&
-      !['Finalizada', 'Cancelada'].includes(order.status) &&
+      !['Finalizado', 'Entregue', 'Cancelado'].includes(order.status) &&
       new Date(order.sla_due_at).getTime() < Date.now(),
     cliente: order.customer_name,
     equipamento: [order.device_type, order.device_brand, order.device_model].filter(Boolean).join(' '),

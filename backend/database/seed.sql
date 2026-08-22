@@ -23,28 +23,29 @@ ON CONFLICT (code) DO UPDATE
 
 -- Planos comercializados
 INSERT INTO plans (code, name, description, monthly_price, max_users) VALUES
-  ('essencial',    'Essencial',    'Para assistências que estão começando.',            0.00,   3),
-  ('profissional', 'Profissional', 'Relatórios gerenciais e gestão de prazos (SLA).', 149.90,  15),
-  ('empresarial',  'Empresarial',  'Todos os módulos, para operações de grande porte.', 299.90, 50)
-ON CONFLICT (code) DO NOTHING;
+  ('start',        'Start',        'Para assistências que estão começando.',            59.90,  3),
+  ('professional', 'Professional', 'Relatórios gerenciais e gestão de prazos (SLA).',  119.90, 15),
+  ('business',     'Business',     'Todos os módulos, para operações de grande porte.', 249.90, 50)
+ON CONFLICT (code) DO UPDATE
+   SET name = EXCLUDED.name, description = EXCLUDED.description, monthly_price = EXCLUDED.monthly_price;
 
 -- Módulos incluídos em cada plano
---   Essencial (4) < Profissional (6) < Empresarial (8)
+--   Start (4) < Professional (6) < Business (8)
 DELETE FROM plan_modules;
 
 INSERT INTO plan_modules (plan_id, module_id)
 SELECT p.id, m.id FROM plans p, modules m
- WHERE p.code = 'essencial'
+ WHERE p.code = 'start'
    AND m.code IN ('customers', 'devices', 'orders', 'users');
 
 INSERT INTO plan_modules (plan_id, module_id)
 SELECT p.id, m.id FROM plans p, modules m
- WHERE p.code = 'profissional'
+ WHERE p.code = 'professional'
    AND m.code IN ('customers', 'devices', 'orders', 'users', 'reports', 'sla');
 
 INSERT INTO plan_modules (plan_id, module_id)
 SELECT p.id, m.id FROM plans p, modules m
- WHERE p.code = 'empresarial'
+ WHERE p.code = 'business'
    AND m.code IN ('customers', 'devices', 'orders', 'users', 'reports', 'sla', 'schedule', 'portal');
 
 -- Administrador da Plataforma (sem tenant_id)

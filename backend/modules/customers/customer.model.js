@@ -1,43 +1,85 @@
 // Módulo Clientes — acesso a dados (sempre filtrado por tenant_id).
+// Pessoa Física (CPF) e Pessoa Jurídica (CNPJ), com soft delete.
 const db = require('../../config/database');
 
-const list = (tenantId, search) => {
+const ACTIVE = 'deleted_at IS NULL';
+
+const list = (tenantId, search, { limit = 500, offset = 0 } = {}) => {
+  const params = [tenantId];
+  let sql = `SELECT * FROM customers WHERE tenant_id = $1 AND ${ACTIVE}`;
   if (search) {
-    return db.all(
-      `SELECT * FROM customers
-        WHERE tenant_id = $1
-          AND (name ILIKE $2 OR cpf ILIKE $2 OR email ILIKE $2 OR phone ILIKE $2)
-        ORDER BY name`,
-      [tenantId, `%${search}%`],
-    );
+    params.push(`%${search}%`);
+    const p = `$${params.length}`;
+    sql += ` AND (name ILIKE ${p} OR company_name ILIKE ${p} OR document_number ILIKE ${p}
+                  OR email ILIKE ${p} OR phone ILIKE ${p})`;
   }
-  return db.all('SELECT * FROM customers WHERE tenant_id = $1 ORDER BY name', [tenantId]);
+  params.push(limit, offset);
+  sql += ` ORDER BY name LIMIT $${params.length - 1} OFFSET $${params.length}`;
+  return db.all(sql, params);
 };
 
 const findById = (tenantId, id) =>
-  db.one('SELECT * FROM customers WHERE tenant_id = $1 AND id = $2', [tenantId, id]);
+  db.one(`SELECT * FROM customers WHERE tenant_id = $1 AND id = $2 AND ${ACTIVE}`, [tenantId, id]);
 
-const findByCpf = (tenantId, cpf) =>
-  db.one('SELECT * FROM customers WHERE tenant_id = $1 AND cpf = $2', [tenantId, cpf]);
-
-const create = (tenantId, { cpf, name, phone, email }) =>
+const findByDocument = (tenantId, documentNumber, ignoreId = null) =>
   db.one(
-    `INSERT INTO customers (tenant_id, cpf, name, phone, email)
-     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-    [tenantId, cpf, name, phone, email],
+    `SELECT * FROM customers
+      WHERE tenant_id = $1 AND document_number = $2 AND ${ACTIVE}
+        AND ($3::uuid IS NULL OR id <> $3)`,
+    [tenantId, documentNumber, ignoreId],
   );
 
-const update = (tenantId, id, { name, phone, email }) =>
+// Mantido por compatibilidade com chamadas antigas.
+const findByCpf = (tenantId, cpf) => findByDocument(tenantId, cpf);
+
+const create = (tenantId, data) =>
   db.one(
-    `UPDATE customers SET name = $3, phone = $4, email = $5
-      WHERE tenant_id = $1 AND id = $2 RETURNING *`,
-    [tenantId, id, name, phone, email],
+    `INSERT INTO customers
+       (tenant_id, cpf, document_type, document_number, name, company_name, phone, email,
+        zip_code, address, neighborhood, city, state,
+        trade_name, birth_date, registration_status, cnae, opening_date)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`,
+    [
+      tenantId,
+      data.documentType === 'CPF' ? data.documentNumber : null,
+      data.documentType,
+      data.documentNumber,
+      data.name,
+      data.companyName,
+      data.phone,
+      data.email,
+      data.zipCode,
+      data.address,
+      data.neighborhood,
+      data.city,
+      data.state,
+      data.tradeName || null,
+      data.birthDate || null,
+      data.registrationStatus || null,
+      data.cnae || null,
+      data.openingDate || null,
+    ],
   );
 
+const update = (tenantId, id, data) =>
+  db.one(
+    `UPDATE customers
+        SET name = $3, company_name = $4, phone = $5, email = $6,
+            zip_code = $7, address = $8, neighborhood = $9, city = $10, state = $11,
+            trade_name = COALESCE($12, trade_name), birth_date = COALESCE($13, birth_date)
+      WHERE tenant_id = $1 AND id = $2 AND ${ACTIVE} RETURNING *`,
+    [
+      tenantId, id, data.name, data.companyName, data.phone, data.email,
+      data.zipCode, data.address, data.neighborhood, data.city, data.state,
+      data.tradeName || null, data.birthDate || null,
+    ],
+  );
+
+/** Soft delete: o histórico da empresa é preservado. */
 const remove = (tenantId, id) =>
-  db.run('DELETE FROM customers WHERE tenant_id = $1 AND id = $2', [tenantId, id]);
+  db.run(`UPDATE customers SET deleted_at = NOW() WHERE tenant_id = $1 AND id = $2 AND ${ACTIVE}`, [tenantId, id]);
 
 const count = (tenantId) =>
-  db.one('SELECT COUNT(*)::int AS total FROM customers WHERE tenant_id = $1', [tenantId]);
+  db.one(`SELECT COUNT(*)::int AS total FROM customers WHERE tenant_id = $1 AND ${ACTIVE}`, [tenantId]);
 
-module.exports = { list, findById, findByCpf, create, update, remove, count };
+module.exports = { list, findById, findByDocument, findByCpf, create, update, remove, count };
