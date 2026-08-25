@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portal do Cliente — Kuba Tech</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/login.css">
+</head>
+<body>
+
+<nav class="navbar">
+  <a href="login.html" class="navbar-brand">
+    <div class="brand-icon"><i class="fas fa-tools"></i></div>
+    Kuba Tech
+  </a>
+</nav>
+
+<main style="max-width:760px;margin:40px auto;padding:0 16px;">
+  <h1 class="page-title">Portal do Cliente</h1>
+  <p class="page-sub">Acompanhe o andamento da sua ordem de serviço informando o número da O.S. e o seu CPF.</p>
+
+  <div class="tcard" style="padding:20px;margin-top:18px;">
+    <div class="fg"><label for="f-numero">Número da O.S. *</label>
+      <input type="text" class="fc" id="f-numero" inputmode="numeric" placeholder="Ex.: 12"></div>
+    <div class="fg"><label for="f-cpf">CPF do cliente *</label>
+      <input type="text" class="fc" id="f-cpf" data-mask="cpf" placeholder="000.000.000-00"></div>
+    <button class="btn btn-primary" id="btn-consultar"><i class="fas fa-search"></i> Consultar</button>
+  </div>
+
+  <div id="resultado" style="margin-top:20px;"></div>
+</main>
+
+<script src="../js/config.js"></script>
+<script src="../js/shared.js"></script>
+<script src="../js/portal.js"></script>
+</body>
+</html>

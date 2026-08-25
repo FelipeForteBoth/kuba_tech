@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agenda Técnica — Kuba Tech</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+  <button id="menu-btn"><i class="fas fa-bars"></i></button>
+  <a href="index.html" class="navbar-brand">
+    <div class="brand-icon"><i class="fas fa-tools"></i></div>
+    Kuba Tech
+  </a>
+</nav>
+
+<div id="wrapper">
+  <aside id="sidebar">
+    <span class="sidebar-label">Menu Principal</span>
+    <a href="index.html"        class="nav-item" data-page="index"><i class="fas fa-home"></i> Dashboard</a>
+    <a href="clientes.html"     class="nav-item" data-page="clientes"><i class="fas fa-users"></i> Clientes</a>
+    <a href="dispositivos.html" class="nav-item" data-page="dispositivos"><i class="fas fa-laptop-medical"></i> Equipamentos</a>
+    <a href="os.html"           class="nav-item" data-page="os"><i class="fas fa-file-invoice"></i> Ordens de Serviço</a>
+    <a href="usuarios.html"     class="nav-item" data-page="usuarios"><i class="fas fa-user-shield"></i> Usuários</a>
+    <a href="relatorios.html"   class="nav-item" data-page="relatorios"><i class="fas fa-chart-column"></i> Relatórios</a>
+    <a href="agenda.html"       class="nav-item" data-page="agenda"><i class="fas fa-calendar-days"></i> Agenda Técnica</a>
+    <a href="assinatura.html"   class="nav-item" data-page="assinatura"><i class="fas fa-credit-card" aria-hidden="true"></i> Plano e Assinatura</a>
+  </aside>
+
+  <main id="main-content">
+
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Agenda Técnica</h1>
+        <p class="page-sub" id="sub-info">Programação de atendimentos</p>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;">
+        De <input type="date" class="filter-sel" id="f-from">
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;">
+        Até <input type="date" class="filter-sel" id="f-to">
+      </label>
+      <button class="btn btn-primary" id="btn-filter"><i class="fas fa-filter"></i> Aplicar</button>
+      <button class="btn btn-ghost" id="btn-today"><i class="fas fa-calendar-day"></i> Hoje</button>
+      <button class="btn btn-ghost" id="btn-week"><i class="fas fa-calendar-week"></i> Próximos 7 dias</button>
+    </div>
+
+    <div class="tcard">
+      <div class="tscroll">
+        <table>
+          <thead>
+            <tr><th>Data / hora</th><th>O.S.</th><th>Cliente</th><th>Equipamento</th><th>Técnico</th><th>Status</th><th></th></tr>
+          </thead>
+          <tbody id="t-agenda"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <h2 class="page-title" style="font-size:18px;margin:24px 0 10px;">Aguardando programação</h2>
+    <div class="tcard" style="margin-bottom:24px;">
+      <div class="tscroll">
+        <table>
+          <thead>
+            <tr><th>O.S.</th><th>Cliente</th><th>Equipamento</th><th>Técnico</th><th>Prazo (SLA)</th><th></th></tr>
+          </thead>
+          <tbody id="t-pendentes"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tcard" id="card-carga" style="margin-bottom:24px;display:none;">
+      <div class="tscroll">
+        <table>
+          <thead><tr><th>Carga por técnico no período</th><th>Atendimentos</th></tr></thead>
+          <tbody id="t-carga"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Drawer -->
+<div id="overlay" class="overlay"></div>
+<div id="drawer" class="drawer">
+  <div class="drawer-hd">
+    <div>
+      <div class="drawer-title" id="drawer-title">Programar atendimento</div>
+      <div class="drawer-mode" id="drawer-mode">Agenda</div>
+    </div>
+    <button class="drawer-x" id="drawer-x">×</button>
+  </div>
+  <div class="drawer-body" id="drawer-body"></div>
+  <div class="drawer-ft"   id="drawer-ft"></div>
+</div>
+
+<script src="../js/config.js"></script>
+<script src="../js/shared.js"></script>
+<script src="../js/agenda.js"></script>
+</body>
+</html>
