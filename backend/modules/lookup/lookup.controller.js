@@ -1,10 +1,6 @@
 // Consultas auxiliares: CNPJ (Receita), CEP (ViaCEP) e geocodificação (Mapbox).
 const { AppError } = require('../../shared/http');
-<<<<<<< HEAD
 const { lookupCNPJ, lookupCPF } = require('../../shared/documents');
-=======
-const { lookupCNPJ, cpfExistenceCheck, onlyDigits } = require('../../shared/documents');
->>>>>>> 2d4a93d61ca1f6dbbb8d08174f869fa5963b3124
 const { lookupCEP, geocode, buildAddress } = require('../../shared/geo');
 
 async function cnpj(req, res) {
@@ -14,15 +10,9 @@ async function cnpj(req, res) {
 }
 
 async function cpf(req, res) {
-<<<<<<< HEAD
   const result = await lookupCPF(req.params.cpf);
   if (!result.valid) throw new AppError(result.reason || 'CPF inválido.');
   res.json(result);
-=======
-  const result = cpfExistenceCheck(req.params.cpf);
-  if (!result.valid) throw new AppError(result.reason);
-  res.json({ valid: true, documento: onlyDigits(req.params.cpf) });
->>>>>>> 2d4a93d61ca1f6dbbb8d08174f869fa5963b3124
 }
 
 async function cep(req, res) {

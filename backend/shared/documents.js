@@ -57,7 +57,6 @@ function isValidCNPJDigits(value) {
  *  - o 9º dígito (região fiscal) que precisa estar entre 0 e 9;
  *  - CPFs com todos os 9 primeiros dígitos iguais.
  */
-<<<<<<< HEAD
 // Regiões fiscais da Receita Federal (9º dígito do CPF).
 const CPF_REGIONS = {
   0: { regiao: '0 — RS', estados: ['RS'] },
@@ -125,8 +124,6 @@ async function lookupCPF(value) {
   };
 }
 
-=======
->>>>>>> 2d4a93d61ca1f6dbbb8d08174f869fa5963b3124
 function cpfExistenceCheck(value) {
   const cpf = onlyDigits(value);
   if (!isValidCPFDigits(cpf)) return { valid: false, reason: 'CPF inválido (dígitos verificadores).' };
@@ -211,13 +208,10 @@ async function lookupCNPJ(value) {
     cidade: json.municipio || '',
     estado: json.uf || '',
     situacao: json.descricao_situacao_cadastral || json.situacao || '',
-<<<<<<< HEAD
     cnae: json.cnae_fiscal_descricao
       || (Array.isArray(json.atividade_principal) && json.atividade_principal[0] && json.atividade_principal[0].text)
       || '',
     dataAbertura: json.data_inicio_atividade || json.abertura || '',
-=======
->>>>>>> 2d4a93d61ca1f6dbbb8d08174f869fa5963b3124
     email: json.email || '',
     telefone: json.ddd_telefone_1 || '',
   };
@@ -231,10 +225,7 @@ module.exports = {
   isValidCPFDigits,
   isValidCNPJDigits,
   cpfExistenceCheck,
-<<<<<<< HEAD
   lookupCPF,
-=======
->>>>>>> 2d4a93d61ca1f6dbbb8d08174f869fa5963b3124
   lookupCNPJ,
   fetchJson,
 };
