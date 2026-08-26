@@ -62,6 +62,13 @@ app.use((_req, res) => res.sendFile(path.join(FRONT_DIR, 'html', 'login.html')))
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`✅ API Kuba Tech em http://localhost:${PORT}`));
+app.listen(PORT, async () => {
+  console.log(`✅ API Kuba Tech em http://localhost:${PORT}`);
+  // Mantém o banco de produção sempre atualizado após o deploy.
+  if (process.env.AUTO_MIGRATE !== 'false') {
+    await require('./database/runner').runOnBoot();
+  }
+});
+
 
 module.exports = app;

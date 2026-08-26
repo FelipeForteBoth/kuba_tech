@@ -53,11 +53,18 @@ const tenantDocumentExists = (document) =>
 async function createCompanyWithAdmin({ company, admin, planId }) {
   return db.transaction(async (client) => {
     const tenantResult = await client.query(
-      `INSERT INTO tenants (company_name, document, email, phone, plan_id, status)
-       VALUES ($1, $2, $3, $4, $5, 'active') RETURNING *`,
-      [company.name, company.document, company.email, company.phone, planId],
+      `INSERT INTO tenants (company_name, document, email, billing_email, phone, plan_id, status,
+                            zip_code, address, neighborhood, city, state, next_due_date)
+       VALUES ($1, $2, $3, $3, $4, $5, 'active', $6, $7, $8, $9, $10,
+               (CURRENT_DATE + INTERVAL '30 days')::date) RETURNING *`,
+      [
+        company.name, company.document, company.email, company.phone, planId,
+        company.zipCode || null, company.address || null, company.neighborhood || null,
+        company.city || null, company.state || null,
+      ],
     );
     const tenant = tenantResult.rows[0];
+
 
     await client.query(
       `INSERT INTO tenant_modules (tenant_id, module_id)

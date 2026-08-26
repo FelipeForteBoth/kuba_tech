@@ -127,7 +127,7 @@ function formHTML(c) {
         <button type="button" class="btn btn-ghost btn-sm" id="btn-consulta" ${c ? 'disabled' : ''}>
           <i class="fas fa-magnifying-glass"></i> Consultar</button>
       </div>
-      <span class="stat-lbl" id="doc-hint">${pj ? 'A razão social e o endereço são preenchidos automaticamente pela Receita Federal.' : 'Validação pelos dígitos verificadores oficiais.'}</span></div>
+      <span class="stat-lbl" id="doc-hint">${pj ? 'A razão social e o endereço são preenchidos automaticamente pela Receita Federal.' : 'O nome do titular é preenchido automaticamente pela consulta do CPF.'}</span></div>
 
     <div class="fg" id="fg-razao" style="${pj ? '' : 'display:none;'}">
       <label for="f-razao">Razão social *</label>
@@ -137,9 +137,8 @@ function formHTML(c) {
       <label for="f-fantasia">Nome fantasia</label>
       <input type="text" class="fc" id="f-fantasia" value="${esc(c ? (c.trade_name || '') : '')}" placeholder="Nome fantasia"></div>
 
-    <div class="fg" id="fg-nasc" style="${pj ? 'display:none;' : ''}">
-      <label for="f-nasc">Data de nascimento</label>
-      <input type="date" class="fc" id="f-nasc" value="${esc(c && c.birth_date ? String(c.birth_date).slice(0, 10) : '')}"></div>
+
+
 
     <div class="grid-2" id="fg-receita">
       <div class="fg"><label for="f-situacao">Situação cadastral</label>
@@ -198,10 +197,9 @@ function bindDocumento() {
       document.getElementById('fg-fantasia').style.display = pj ? '' : 'none';
       document.getElementById('fg-cnae').style.display = pj ? '' : 'none';
       document.getElementById('fg-abertura').style.display = pj ? '' : 'none';
-      document.getElementById('fg-nasc').style.display = pj ? 'none' : '';
       document.getElementById('doc-hint').textContent = pj
         ? 'A razão social e o endereço são preenchidos automaticamente pela Receita Federal.'
-        : 'Validação pelos dígitos verificadores oficiais.';
+        : 'O nome do titular é preenchido automaticamente pela consulta do CPF.';
     });
   });
 
@@ -238,8 +236,7 @@ async function consultarDocumento() {
       const r = await consultarCPF(valor);
       const d = r.data || {};
       const nome = document.getElementById('f-nome');
-      if (d.nome && !nome.value) nome.value = d.nome;
-      if (d.nascimento) document.getElementById('f-nasc').value = String(d.nascimento).slice(0, 10);
+      if (d.nome) nome.value = d.nome;
       if (d.situacao) document.getElementById('f-situacao').value = d.situacao;
       if (d.cidade && !document.getElementById('f-cidade').value) document.getElementById('f-cidade').value = d.cidade;
       if (d.estado && !document.getElementById('f-estado').value) document.getElementById('f-estado').value = d.estado;
@@ -323,7 +320,6 @@ async function saveCliente() {
     city: document.getElementById('f-cidade').value.trim(),
     state: document.getElementById('f-estado').value.trim().toUpperCase(),
     tradeName: (document.getElementById('f-fantasia') || {}).value || null,
-    birthDate: (document.getElementById('f-nasc') || {}).value || null,
     registrationStatus: (document.getElementById('f-situacao') || {}).value || null,
     cnae: (document.getElementById('f-cnae') || {}).value || null,
     openingDate: (document.getElementById('f-abertura') || {}).value || null,

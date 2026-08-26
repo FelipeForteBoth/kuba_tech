@@ -47,6 +47,16 @@ async function buscarEmpresaPorCNPJ() {
     if (d.email) preencherCampo(document.getElementById('companyEmail'), d.email);
     if (d.telefone) preencherCampo(document.getElementById('phone'), maskPhone(d.telefone));
 
+    // Endereço público da Receita Federal.
+    preencherCampo(document.getElementById('zipCode'), d.cep ? maskCEP(d.cep) : '');
+    preencherCampo(
+      document.getElementById('address'),
+      [d.logradouro, d.numero].filter(Boolean).join(', '),
+    );
+    preencherCampo(document.getElementById('neighborhood'), d.bairro);
+    preencherCampo(document.getElementById('city'), d.cidade);
+    preencherCampo(document.getElementById('state'), d.estado);
+
     const extras = [d.nomeFantasia && `Nome fantasia: ${d.nomeFantasia}`,
       d.situacao && `Situação: ${d.situacao}`,
       d.cidade && `${d.cidade}${d.estado ? '/' + d.estado : ''}`].filter(Boolean).join(' · ');
@@ -71,6 +81,11 @@ async function cadastrarEmpresa() {
     adminName: get('adminName'),
     adminEmail: get('adminEmail'),
     password: document.getElementById('password').value,
+    zipCode: get('zipCode'),
+    address: get('address'),
+    neighborhood: get('neighborhood'),
+    city: get('city'),
+    state: get('state').toUpperCase(),
   };
 
   const fail = (msg) => setMensagem(msg, 'err');

@@ -73,11 +73,23 @@ async function registerCompany(req, res) {
   if (!plan) throw new AppError('Nenhum plano disponível para contratação.', 500);
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+  const endereco = (v, max) => (String(v || '').trim() ? String(v).trim().slice(0, max) : null);
   const { tenant, user } = await model.createCompanyWithAdmin({
-    company: { name: companyName, document, email: companyEmail, phone },
+    company: {
+      name: companyName,
+      document,
+      email: companyEmail,
+      phone,
+      zipCode: endereco(req.body.zipCode, 10),
+      address: endereco(req.body.address, 255),
+      neighborhood: endereco(req.body.neighborhood, 100),
+      city: endereco(req.body.city, 100),
+      state: endereco(req.body.state, 50),
+    },
     admin: { name: adminName, email: adminEmail, passwordHash },
     planId: plan.id,
   });
+
 
   const token = signToken(user);
   res.status(201).json({

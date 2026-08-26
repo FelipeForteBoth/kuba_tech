@@ -72,13 +72,43 @@ const CPF_REGIONS = {
 };
 
 /**
- * Consulta opcional a uma API externa de CPF.
- * Ativada apenas quando CPF_API_URL estiver configurada (ex.: serviço
- * gratuito com token próprio). O placeholder {cpf} é substituído pelo
- * número consultado. Sem configuração, o sistema segue com a
- * verificação estrutural, que já impede CPFs inexistentes.
+ * Consulta do nome do titular do CPF em provedores oficiais.
+ *
+ * A Receita Federal não publica uma API gratuita e aberta de CPF, por isso
+ * o sistema aceita qualquer provedor autorizado através de variáveis de
+ * ambiente (configure UMA delas na Render):
+ *
+ *   CPFCNPJ_TOKEN  → api.cpfcnpj.com.br (retorna o nome só com o CPF)
+ *   CPF_API_URL    → endpoint próprio, com o marcador {cpf} na URL
+ *                    (opcional: CPF_API_TOKEN vira o Bearer da requisição)
+ *
+ * Sem provedor configurado, o CPF continua sendo validado pelos dígitos
+ * verificadores e o nome é digitado manualmente.
  */
+const CPF_NAME_KEYS = ['nome', 'name', 'nome_da_pf', 'nomeCompleto'];
+
+function extrairCPF(json) {
+  if (!json || typeof json !== 'object') return null;
+  const alvo = json.data || json.result || json.retorno || json;
+  const nome = CPF_NAME_KEYS.map((k) => alvo[k]).find((v) => typeof v === 'string' && v.trim());
+  if (!nome) return null;
+  return {
+    nome: String(nome).trim(),
+    situacao: alvo.situacao || alvo.situacao_cadastral || alvo.status || '',
+    cidade: alvo.cidade || alvo.municipio || '',
+    estado: alvo.uf || alvo.estado || '',
+  };
+}
+
 async function lookupCPFExternal(cpf) {
+  // 1) Provedor cpfcnpj.com.br (pacote 2 — dados cadastrais do CPF).
+  if (process.env.CPFCNPJ_TOKEN) {
+    const json = await fetchJson(`https://api.cpfcnpj.com.br/${process.env.CPFCNPJ_TOKEN}/2/${cpf}`);
+    const dados = extrairCPF(json);
+    if (dados) return dados;
+  }
+
+  // 2) Provedor personalizado.
   const url = process.env.CPF_API_URL;
   if (!url) return null;
   const headers = { accept: 'application/json' };
@@ -86,20 +116,13 @@ async function lookupCPFExternal(cpf) {
   try {
     const res = await fetch(url.replace('{cpf}', cpf), { headers });
     if (!res.ok) return null;
-    const json = await res.json();
-    return {
-      nome: json.nome || json.name || '',
-      nascimento: json.nascimento || json.data_nascimento || json.birthDate || '',
-      situacao: json.situacao || json.situacao_cadastral || '',
-      cidade: json.cidade || json.municipio || '',
-      estado: json.uf || json.estado || '',
-    };
+    return extrairCPF(await res.json());
   } catch {
     return null;
   }
 }
 
-/** Consulta pública do CPF: valida e devolve os dados disponíveis. */
+/** Consulta pública do CPF: valida e devolve o nome do titular quando disponível. */
 async function lookupCPF(value) {
   const cpf = onlyDigits(value);
   const check = cpfExistenceCheck(cpf);
@@ -111,10 +134,10 @@ async function lookupCPF(value) {
   return {
     valid: true,
     documento: cpf,
+    nomeDisponivel: Boolean(externo && externo.nome),
     data: {
       situacao: (externo && externo.situacao) || 'Regular (dígitos verificadores válidos)',
       nome: (externo && externo.nome) || '',
-      nascimento: (externo && externo.nascimento) || '',
       cidade: (externo && externo.cidade) || '',
       estado: (externo && externo.estado) || (regiao && regiao.estados.length === 1 ? regiao.estados[0] : ''),
       regiaoFiscal: regiao ? regiao.regiao : '',
@@ -123,6 +146,7 @@ async function lookupCPF(value) {
     source: externo ? 'api-externa' : 'receita-estrutural',
   };
 }
+
 
 function cpfExistenceCheck(value) {
   const cpf = onlyDigits(value);

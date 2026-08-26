@@ -230,9 +230,17 @@ function newEmpresa() {
   document.getElementById('drawer-body').innerHTML = `
     <div class="d-section"><i class="fas fa-building"></i> Dados da Empresa</div>
     <div class="fg"><label>Razão social *</label><input class="fc" id="n-nome" placeholder="Assistência Técnica LTDA"></div>
-    <div class="fg"><label>CNPJ *</label><input class="fc" id="n-cnpj" data-mask="cnpj" placeholder="00.000.000/0000-00" maxlength="18"></div>
+    <div class="fg"><label>CNPJ *</label><input class="fc" id="n-cnpj" data-mask="cnpj" placeholder="00.000.000/0000-00" maxlength="18">
+      <span class="stat-lbl">A razão social e o endereço são preenchidos automaticamente pela Receita Federal.</span></div>
     <div class="fg"><label>E-mail da empresa *</label><input class="fc" id="n-email" type="email" placeholder="contato@empresa.com.br"></div>
     <div class="fg"><label>Telefone</label><input class="fc" id="n-fone" data-mask="phone" placeholder="(00) 00000-0000" maxlength="15"></div>
+    <div class="fg"><label>CEP</label><input class="fc" id="n-cep" maxlength="9" placeholder="00000-000"></div>
+    <div class="fg"><label>Endereço</label><input class="fc" id="n-rua" placeholder="Rua, número"></div>
+    <div class="grid-2">
+      <div class="fg"><label>Bairro</label><input class="fc" id="n-bairro"></div>
+      <div class="fg"><label>Cidade</label><input class="fc" id="n-cidade"></div>
+    </div>
+    <div class="fg"><label>Estado (UF)</label><input class="fc" id="n-uf" maxlength="2"></div>
     <div class="fg"><label>Plano *</label>
       <select class="fc" id="n-plano">
         ${plans.map((p) => `<option value="${p.id}">${esc(p.name)} — ${money(p.monthly_price)} — ${(p.modules || []).length} módulos</option>`).join('')}
@@ -243,10 +251,54 @@ function newEmpresa() {
     <div class="fg"><label>E-mail de acesso *</label><input class="fc" id="n-adm-email" type="email" placeholder="admin@empresa.com.br"></div>
     <div class="fg"><label>Senha * (mín. 8 caracteres, com letras e números)</label>
       <input class="fc" id="n-senha" type="password" placeholder="••••••••"></div>`;
+  bindCNPJEmpresa();
+  bindCEP('n-cep', {
+    logradouro: 'n-rua', bairro: 'n-bairro', cidade: 'n-cidade', estado: 'n-uf',
+  });
+
   document.getElementById('drawer-ft').innerHTML = `
     <button class="btn btn-ghost btn-sm" onclick="closeDrawer()">Cancelar</button>
     <button class="btn btn-primary btn-sm" onclick="createEmpresa()"><i class="fas fa-save"></i> Cadastrar</button>`;
   openDrawer();
+}
+
+// Consulta automática do CNPJ: razão social + endereço da Receita Federal.
+function bindCNPJEmpresa() {
+  const campo = document.getElementById('n-cnpj');
+  if (!campo) return;
+  let ultimo = '';
+  const consultar = async () => {
+    const digitos = onlyDigits(campo.value);
+    if (digitos.length !== 14 || digitos === ultimo) return;
+    if (!isValidCNPJ(digitos)) {
+      fieldHint(campo, 'CNPJ inválido: confira os dígitos verificadores.', 'err');
+      return;
+    }
+    ultimo = digitos;
+    fieldHint(campo, 'Consultando a Receita Federal...', 'loading');
+    try {
+      const r = await consultarCNPJ(digitos);
+      if (r.unavailable) {
+        fieldHint(campo, 'Consulta indisponível agora. Preencha manualmente.', 'err');
+        return;
+      }
+      const d = r.data || {};
+      preencherCampo(document.getElementById('n-nome'), d.razaoSocial || d.nomeFantasia);
+      if (d.email) preencherCampo(document.getElementById('n-email'), d.email);
+      if (d.telefone) preencherCampo(document.getElementById('n-fone'), maskPhone(d.telefone));
+      preencherCampo(document.getElementById('n-cep'), d.cep ? maskCEP(d.cep) : '');
+      preencherCampo(document.getElementById('n-rua'), [d.logradouro, d.numero].filter(Boolean).join(', '));
+      preencherCampo(document.getElementById('n-bairro'), d.bairro);
+      preencherCampo(document.getElementById('n-cidade'), d.cidade);
+      preencherCampo(document.getElementById('n-uf'), d.estado);
+      fieldHint(campo, 'Razão social e endereço preenchidos. Revise antes de salvar.', 'ok');
+    } catch (e) {
+      ultimo = '';
+      fieldHint(campo, e.message || 'Não foi possível consultar o CNPJ.', 'err');
+    }
+  };
+  campo.addEventListener('blur', consultar);
+  campo.addEventListener('input', () => { if (onlyDigits(campo.value).length === 14) consultar(); });
 }
 
 async function createEmpresa() {
@@ -259,6 +311,11 @@ async function createEmpresa() {
     adminName: document.getElementById('n-adm-nome').value.trim(),
     adminEmail: document.getElementById('n-adm-email').value.trim(),
     password: document.getElementById('n-senha').value,
+    zipCode: document.getElementById('n-cep').value.trim(),
+    address: document.getElementById('n-rua').value.trim(),
+    neighborhood: document.getElementById('n-bairro').value.trim(),
+    city: document.getElementById('n-cidade').value.trim(),
+    state: document.getElementById('n-uf').value.trim().toUpperCase(),
   };
 
   if (body.companyName.length < 3) return toast('Informe a razão social.', 'err');

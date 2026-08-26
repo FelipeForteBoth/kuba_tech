@@ -20,8 +20,21 @@ function errorHandler(err, req, res, _next) {
   if (err.code === '23505') return res.status(409).json({ error: 'Registro já cadastrado.' });
   if (err.code === '23503') return res.status(400).json({ error: 'Registro relacionado não encontrado.' });
 
+  // Banco desatualizado (tabela/coluna inexistente): mensagem clara.
+  if (err.code === '42P01' || err.code === '42703') {
+    console.error('Banco desatualizado:', err.message);
+    return res.status(500).json({
+      error: 'O banco de dados está desatualizado. Rode as migrações (npm run migrate) e tente novamente.',
+      detail: err.message,
+    });
+  }
+
   console.error('Erro não tratado:', err);
-  res.status(500).json({ error: 'Erro interno no servidor.' });
+  res.status(500).json({
+    error: 'Erro interno no servidor.',
+    detail: process.env.DEBUG_ERRORS === 'true' ? err.message : undefined,
+  });
 }
+
 
 module.exports = { asyncHandler, AppError, errorHandler };
