@@ -13,6 +13,8 @@ router.use(authenticate, authorize(ROLES.PLATFORM_ADMIN));
 router.get('/metrics', asyncHandler(controller.metrics));
 router.get('/plans', asyncHandler(controller.plans));
 router.get('/modules', asyncHandler(controller.modules));
+router.get('/payment-requests', asyncHandler(controller.paymentRequests));
+router.patch('/payment-requests/:id', asyncHandler(controller.updatePaymentRequest));
 router.get('/tenants', asyncHandler(controller.tenants));
 router.post('/tenants', asyncHandler(controller.store));
 router.get('/tenants/:id', asyncHandler(controller.tenant));

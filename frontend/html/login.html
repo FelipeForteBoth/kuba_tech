@@ -4,23 +4,66 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Entrar — Kuba Tech</title>
-    <link rel="stylesheet" href="../css/login.css">
+    <meta name="description" content="Acesse o painel da sua empresa no Kuba Tech e gerencie clientes, equipamentos e ordens de serviço." />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../css/auth.css">
   </head>
   <body>
-    <div class="login-container">
-      <h1>Kuba Tech</h1>
+    <a class="skip-link" href="#main-content">Ir para o conteúdo</a>
 
-      <input type="email" id="login" placeholder="E-mail" autocomplete="username" />
-      <input type="password" id="senha" placeholder="Senha" autocomplete="current-password" />
+    <header class="au-nav">
+      <a href="../index.html" class="au-brand">
+        <span class="au-brand-icon" aria-hidden="true"><i class="fas fa-tools"></i></span>
+        Kuba Tech
+      </a>
+      <a href="../index.html" class="au-back"><i class="fas fa-arrow-left" aria-hidden="true"></i> Voltar ao site</a>
+    </header>
 
-      <button onclick="fazerLogin()">Entrar</button>
+    <main class="au-main" id="main-content">
+      <div class="au-card">
+        <h1 class="au-title">Entrar na plataforma</h1>
+        <p class="au-sub">Informe suas credenciais para acessar o painel da sua empresa.</p>
 
-      <p id="mensagem"></p>
-      <p style="margin-top:14px;font-size:14px;">
-        Ainda não tem conta?
-        <a href="cadastro.html">Cadastre sua empresa</a>
-        <a href="portal.html">Acompanhar minha O.S.</a>
-      </p>
+        <form id="form-login" novalidate>
+          <div class="au-field">
+            <label for="login">E-mail</label>
+            <input type="email" id="login" name="email" placeholder="voce@empresa.com.br"
+                   autocomplete="username" inputmode="email" required />
+          </div>
+
+          <div class="au-field">
+            <label for="senha">Senha</label>
+            <div class="au-pass">
+              <input type="password" id="senha" name="password" placeholder="Sua senha"
+                     autocomplete="current-password" required />
+              <button type="button" class="au-eye" id="btn-eye"
+                      aria-label="Mostrar senha" aria-pressed="false" title="Mostrar senha">
+                <i class="fas fa-eye" aria-hidden="true"></i>
+              </button>
+            </div>
+          </div>
+
+          <button type="submit" class="au-btn" id="btn-entrar">
+            <i class="fas fa-right-to-bracket" aria-hidden="true"></i> Entrar
+          </button>
+        </form>
+
+        <p class="au-msg" id="mensagem" role="status" aria-live="polite"></p>
+
+        <p class="au-foot">
+          Ainda não tem conta? <a href="cadastro.html">Cadastre sua empresa</a>
+          <span class="au-sep">É cliente de uma empresa? <a href="portal.html">Acompanhar minha O.S.</a></span>
+        </p>
+      </div>
+    </main>
+
+    <div class="au-overlay" id="overlay-auth" role="alert" aria-live="assertive" aria-hidden="true">
+      <div class="au-overlay-box">
+        <div class="au-spinner" aria-hidden="true"></div>
+        <p class="au-overlay-txt">Autenticando...</p>
+        <p class="au-overlay-sub">Validando suas credenciais com segurança.</p>
+      </div>
     </div>
 
     <script src="../js/config.js"></script>

@@ -493,12 +493,18 @@ function fecharModal() {
   if (m) m.remove();
 }
 
+/** A assinatura só é exigida em atendimento externo que não seja encerramento interno. */
+function assinaturaObrigatoria(o, diag) {
+  return o.service_type === 'externo' && diag !== 'Encerramento Interno';
+}
+
 function corpoEvidencias(o, diag) {
   const precisaFotos = temFotos() && diag === 'Serviço Completo';
   const precisaAss = temAssinatura();
   if (!precisaFotos && !precisaAss) {
     return '<p class="stat-lbl">Nenhuma evidência é necessária para este diagnóstico.</p>';
   }
+  const obrigatoria = assinaturaObrigatoria(o, diag);
   return `
     ${precisaFotos ? `
       <div class="d-divider"></div>
@@ -513,12 +519,27 @@ function corpoEvidencias(o, diag) {
     ${precisaAss ? `
       <div class="d-divider"></div>
       <div class="d-section"><i class="fas fa-signature"></i> Assinatura do cliente
-        ${o.service_type === 'externo' ? '(obrigatória)' : '(opcional)'}</div>
+        <span class="stat-lbl">${obrigatoria ? '(obrigatória)' : '(opcional)'}</span></div>
       <div id="assinatura-atual"></div>
-      <div class="fg"><label>Nome de quem assina</label>
-        <input type="text" class="fc" id="f-assinante" value="${esc(o.customer_name || '')}"></div>
-      <canvas id="canvas-assinatura" class="assinatura-canvas" width="600" height="220"></canvas>
-      <button class="btn btn-ghost btn-sm" onclick="limparAssinatura()"><i class="fas fa-eraser"></i> Limpar</button>` : ''}`;
+      <button class="btn btn-ghost btn-sm" type="button" id="btn-assinar" onclick="abrirQuadroAssinatura()">
+        <i class="fas fa-signature"></i> Assinar
+      </button>
+      <div id="quadro-assinatura" hidden>
+        <div class="fg"><label for="f-assinante">Nome de quem assina</label>
+          <input type="text" class="fc" id="f-assinante" value="${esc(o.customer_name || '')}"></div>
+        <canvas id="canvas-assinatura" class="assinatura-canvas" width="600" height="220"></canvas>
+        <button class="btn btn-ghost btn-sm" type="button" onclick="limparAssinatura()"><i class="fas fa-eraser"></i> Limpar</button>
+      </div>` : ''}`;
+}
+
+/** O quadro de assinatura só aparece quando o usuário clica em "Assinar". */
+function abrirQuadroAssinatura() {
+  const box = document.getElementById('quadro-assinatura');
+  if (!box) return;
+  box.hidden = false;
+  const btn = document.getElementById('btn-assinar');
+  if (btn) btn.hidden = true;
+  iniciarCanvas();
 }
 
 function renderEvidencias(id) {
@@ -527,10 +548,7 @@ function renderEvidencias(id) {
   const box = document.getElementById('bloco-evidencias');
   box.innerHTML = corpoEvidencias(o, diag);
   if (document.getElementById('galeria')) carregarFotos(id);
-  if (document.getElementById('canvas-assinatura')) {
-    iniciarCanvas();
-    marcarAssinaturaExistente(id);
-  }
+  if (document.getElementById('assinatura-atual')) marcarAssinaturaExistente(id);
 }
 
 async function marcarAssinaturaExistente(id) {
@@ -597,15 +615,15 @@ async function confirmarFinalizacao(id) {
     if (total > FOTOS_MAX) return toast(`Máximo de ${FOTOS_MAX} fotos.`, 'err');
   }
 
-  // Assinatura: obrigatória no atendimento externo.
+  // Assinatura: obrigatória no atendimento externo, exceto no encerramento interno.
   if (temAssinatura()) {
     const canvas = document.getElementById('canvas-assinatura');
     if (canvas && !canvasVazio) {
       const ok = await salvarAssinatura(id, true);
       if (!ok) return;
-    } else if (o.service_type === 'externo' && !(o.signature_count > 0)
+    } else if (assinaturaObrigatoria(o, diagnosis) && !(o.signature_count > 0)
       && !document.querySelector('#assinatura-atual img')) {
-      return toast('Capture a assinatura do cliente para finalizar o atendimento externo.', 'err');
+      return toast('Clique em "Assinar" e capture a assinatura do cliente para finalizar o atendimento externo.', 'err');
     }
   }
 

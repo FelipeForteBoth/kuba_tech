@@ -53,7 +53,7 @@ function layout({ title, intro, rows = [], cta, note }) {
 }
 
 /** Cobrança por atraso — enviada manualmente pelo Admin da Plataforma. */
-function cobranca({ companyName, planName, amount, dueDate, paymentUrl }) {
+function cobranca({ companyName, planName, amount, dueDate }) {
   return {
     subject: `Mensalidade em aberto — ${companyName}`,
     html: layout({
@@ -65,13 +65,13 @@ function cobranca({ companyName, planName, amount, dueDate, paymentUrl }) {
         ['Valor da mensalidade', money(amount)],
         ['Vencimento', date(dueDate)],
       ],
-      cta: paymentUrl ? { url: paymentUrl, label: 'Pagar mensalidade' } : null,
-      note: 'Após a confirmação do pagamento o acesso é liberado automaticamente.',
+      note: 'Para renovar, acesse <strong>Plano e Assinatura</strong> no sistema e clique em "Renovar assinatura". Nossa equipe enviará os dados de Pix ou boleto.',
+      
     }),
   };
 }
 
-/** Pagamento aprovado — disparado pelo webhook do Mercado Pago. */
+/** Pagamento confirmado — baixa manual feita pela equipe Kuba Tech. */
 function pagamentoAprovado({ companyName, planName, amount, paidAt, nextDueDate }) {
   return {
     subject: 'Pagamento confirmado — Kuba Tech',
@@ -90,7 +90,7 @@ function pagamentoAprovado({ companyName, planName, amount, paidAt, nextDueDate 
 }
 
 /** Empresa suspensa — disparado quando o status vira "suspended". */
-function empresaSuspensa({ companyName, planName, amount, dueDate, paymentUrl }) {
+function empresaSuspensa({ companyName, planName, amount, dueDate }) {
   return {
     subject: `Assinatura suspensa — ${companyName}`,
     html: layout({
@@ -102,10 +102,65 @@ function empresaSuspensa({ companyName, planName, amount, dueDate, paymentUrl })
         ['Valor em aberto', money(amount)],
         ['Vencimento', date(dueDate)],
       ],
-      cta: paymentUrl ? { url: paymentUrl, label: 'Regularizar agora' } : null,
-      note: 'Para regularizar, acesse a área <strong>Plano e Assinatura</strong> no sistema e conclua o pagamento. Assinaturas suspensas por mais de 2 meses são canceladas automaticamente.',
+      note: 'Para regularizar, acesse <strong>Plano e Assinatura</strong> no sistema e clique em "Renovar assinatura". Assinaturas suspensas por mais de 2 meses são canceladas automaticamente.',
     }),
   };
 }
 
-module.exports = { cobranca, pagamentoAprovado, empresaSuspensa, layout, money, date };
+/**
+ * Solicitação de renovação — enviada para a caixa administrativa da
+ * Kuba Tech quando uma empresa pede os dados de Pix ou boleto.
+ */
+function solicitacaoRenovacao({
+  requestId, companyName, document, contactEmail, requesterName,
+  requesterEmail, method, planName, amount, dueDate, createdAt,
+}) {
+  return {
+    subject: `Solicitação de renovação (${method}) — ${companyName}`,
+    html: layout({
+      title: 'Nova solicitação de renovação de assinatura',
+      intro: `A empresa <strong>${escape(companyName)}</strong> solicitou as informações para pagamento da mensalidade. Responda com os dados de <strong>${escape(method)}</strong>.`,
+      rows: [
+        ['Solicitação', requestId],
+        ['Empresa', companyName],
+        ['CNPJ', document || '—'],
+        ['Contato da empresa', contactEmail || '—'],
+        ['Solicitante', `${requesterName || '—'} (${requesterEmail || '—'})`],
+        ['Forma de pagamento', method],
+        ['Plano', planName],
+        ['Valor', money(amount)],
+        ['Vencimento', date(dueDate)],
+        ['Data da solicitação', date(createdAt)],
+      ],
+      note: 'Acompanhe e atualize esta solicitação no <strong>Painel da Plataforma</strong>.',
+    }),
+  };
+}
+
+/** Retorno da equipe: atualização do andamento da solicitação. */
+function solicitacaoAtualizada({ companyName, method, statusLabel, notes }) {
+  return {
+    subject: `Atualização da sua solicitação de pagamento — ${statusLabel}`,
+    html: layout({
+      title: 'Sua solicitação foi atualizada',
+      intro: `Olá, <strong>${escape(companyName)}</strong>. O andamento da sua solicitação de renovação (${escape(method)}) foi atualizado.`,
+      rows: [
+        ['Situação', statusLabel],
+        ['Forma de pagamento', method],
+      ],
+      note: notes ? `<strong>Mensagem da equipe:</strong><br>${escape(notes).replace(/\n/g, '<br>')}` : null,
+    }),
+  };
+}
+
+module.exports = {
+  cobranca,
+  pagamentoAprovado,
+  empresaSuspensa,
+  solicitacaoRenovacao,
+  solicitacaoAtualizada,
+  layout,
+  money,
+  date,
+};
+

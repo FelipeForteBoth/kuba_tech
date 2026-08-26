@@ -78,7 +78,7 @@ const PUBLIC_PAGES = ['login', 'cadastro', 'portal'];
 // Páginas que cada perfil pode abrir.
 const PAGE_ACCESS = {
   platform_admin: ['plataforma'],
-  company_admin: ['index', 'clientes', 'dispositivos', 'os', 'usuarios', 'relatorios', 'agenda'],
+  company_admin: ['index', 'clientes', 'dispositivos', 'os', 'usuarios', 'relatorios', 'agenda', 'assinatura'],
   attendant: ['index', 'clientes', 'dispositivos', 'os', 'agenda'],
   technician: ['index', 'os', 'agenda'],
   manager: ['index', 'clientes', 'dispositivos', 'os', 'relatorios'],
@@ -102,6 +102,7 @@ const WRITE_ACCESS = {
   orderStatus: ['company_admin', 'attendant', 'technician'],
   users: ['company_admin'],
   companySettings: ['company_admin'],
+  billing: ['company_admin'],
   schedule: ['company_admin', 'attendant'],
   photos: ['company_admin', 'attendant', 'technician'],
   signature: ['company_admin', 'attendant', 'technician'],
@@ -144,10 +145,23 @@ function currentPage() {
   return window.location.pathname.split('/').pop().replace('.html', '') || 'index';
 }
 
-// Controle de acesso executado na entrada de cada página.
+/** Marca a interface como liberada (remove o bloqueio antiflash do CSS). */
+function liberarInterface() {
+  document.documentElement.setAttribute('data-access', 'ready');
+}
+
+/**
+ * Controle de acesso executado na entrada de cada página.
+ * Roda ANTES da primeira pintura (o CSS mantém a interface oculta até aqui):
+ * módulos não contratados são removidos do DOM, nunca apenas escondidos,
+ * eliminando o "flash" de itens que a empresa não possui.
+ */
 function enforceAccess() {
   const page = currentPage();
-  if (PUBLIC_PAGES.includes(page)) return;
+  if (PUBLIC_PAGES.includes(page)) {
+    liberarInterface();
+    return;
+  }
 
   const session = getSession();
   if (!session) {
@@ -162,22 +176,46 @@ function enforceAccess() {
     return;
   }
 
-  // Oculta do menu tudo que o perfil não pode acessar ou que não está no plano.
+  // Remove do menu tudo que o perfil não pode acessar ou que não está no plano.
   document.querySelectorAll('.nav-item[data-page]').forEach((el) => {
     const visible = allowed.includes(el.dataset.page) && hasModule(PAGE_MODULES[el.dataset.page]);
-    el.style.display = visible ? '' : 'none';
+    if (!visible) el.remove();
   });
 
-  // Oculta elementos que dependem de um módulo do plano.
+  // Remove elementos que dependem de um módulo do plano.
   document.querySelectorAll('[data-module]').forEach((el) => {
-    if (!hasModule(el.dataset.module)) el.style.display = 'none';
+    if (!hasModule(el.dataset.module)) el.remove();
   });
 
-  // Oculta ações de escrita para perfis somente leitura (ex.: Gestor).
+  // Remove ações de escrita para perfis somente leitura (ex.: Gestor).
   document.querySelectorAll('[data-requires]').forEach((el) => {
-    if (!can(el.dataset.requires)) el.style.display = 'none';
+    if (!can(el.dataset.requires)) el.remove();
   });
+
+  liberarInterface();
 }
+
+/**
+ * Revalida no back-end os módulos contratados (o plano pode ter mudado
+ * em outra sessão). Se a lista mudar, reaplica o controle de acesso.
+ */
+async function revalidarModulos() {
+  const session = getSession();
+  if (!session || session.usuario.perfil === 'platform_admin') return;
+  try {
+    const res = await authFetch(`${API_URL}/auth/me`);
+    if (!res.ok) return;
+    const dados = await res.json();
+    const atual = JSON.stringify(currentModules());
+    const novo = JSON.stringify(dados.modulos || []);
+    if (atual === novo) return;
+    setSession(session.token, { ...session.usuario, ...dados });
+    enforceAccess();
+  } catch {
+    /* sem conexão: mantém o que já foi validado no login */
+  }
+}
+
 
 
 // ── TEMA (claro / escuro) ──
@@ -514,6 +552,29 @@ async function consultarCNPJ(cnpj) {
   return dados;
 }
 
+/** Consulta pública do CPF (validação + dados disponíveis). */
+async function consultarCPF(cpf) {
+  const res = await authFetch(`${API_URL}/lookup/cpf/${onlyDigits(cpf)}`);
+  const dados = await res.json();
+  if (!res.ok) throw new Error(dados.error || 'CPF inválido.');
+  return dados;
+}
+
+/** Consultas abertas (tela pública de cadastro de empresa). */
+async function consultarCNPJPublico(cnpj) {
+  const res = await fetch(`${API_URL}/lookup/public/cnpj/${onlyDigits(cnpj)}`);
+  const dados = await res.json();
+  if (!res.ok) throw new Error(dados.error || 'CNPJ inválido.');
+  return dados;
+}
+
+async function consultarCEPPublico(cep) {
+  const res = await fetch(`${API_URL}/lookup/public/cep/${onlyDigits(cep)}`);
+  const dados = await res.json();
+  if (!res.ok) throw new Error(dados.error || 'CEP inválido.');
+  return dados;
+}
+
 async function consultarCEP(cep) {
   const res = await authFetch(`${API_URL}/lookup/cep/${onlyDigits(cep)}`);
   const dados = await res.json();
@@ -524,6 +585,102 @@ async function consultarCEP(cep) {
 function maskCEP(v) {
   v = onlyDigits(v).slice(0, 8);
   return v.length > 5 ? `${v.slice(0, 5)}-${v.slice(5)}` : v;
+}
+
+
+
+// ─────────────────────────────────────────────────────────────
+// UX PADRONIZADA — mensagens de estado, botões ocupados e dicas
+// ─────────────────────────────────────────────────────────────
+
+/** Mensagem padrão de carregando / vazio / erro dentro de um container. */
+function stateMsg(tipo = 'loading', texto = '') {
+  const icones = { loading: 'spinner fa-spin', empty: 'inbox', error: 'triangle-exclamation' };
+  const padrao = { loading: 'Carregando...', empty: 'Nenhum registro encontrado.', error: 'Não foi possível carregar agora.' };
+  return `<div class="state-msg"><i class="fas fa-${icones[tipo] || 'inbox'}"></i>${esc(texto || padrao[tipo] || '')}</div>`;
+}
+
+/**
+ * Evita cliques repetidos: desabilita o botão e mostra "processando"
+ * enquanto a ação assíncrona não termina.
+ */
+async function runAction(btn, fn, textoOcupado = 'Aguarde...') {
+  if (!btn) return fn();
+  if (btn.dataset.busy === '1') return undefined;
+  const original = btn.innerHTML;
+  btn.dataset.busy = '1';
+  btn.disabled = true;
+  btn.classList.add('is-busy');
+  btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${esc(textoOcupado)}`;
+  try {
+    return await fn();
+  } finally {
+    btn.dataset.busy = '';
+    btn.disabled = false;
+    btn.classList.remove('is-busy');
+    btn.innerHTML = original;
+  }
+}
+
+/** Escreve uma dica logo abaixo do campo (loading / ok / erro). */
+function fieldHint(input, texto, tipo = '') {
+  if (!input) return;
+  let hint = input.parentElement.querySelector('.hint-lookup');
+  if (!hint) {
+    hint = document.createElement('small');
+    hint.className = 'hint-lookup';
+    input.parentElement.appendChild(hint);
+  }
+  hint.className = `hint-lookup ${tipo}`;
+  hint.innerHTML = texto ? (tipo === 'loading' ? '<i class="fas fa-spinner fa-spin"></i> ' : '') + esc(texto) : '';
+}
+
+function preencherCampo(el, valor) {
+  if (!el || !valor) return;
+  el.value = valor;
+  el.classList.add('autofilled');
+}
+
+/**
+ * Liga a busca automática de endereço pelo CEP (ViaCEP) a um campo.
+ * @param {string} cepId  id do input de CEP
+ * @param {object} campos { logradouro, bairro, cidade, estado } → ids dos inputs
+ * @param {boolean} publico usa o endpoint aberto (tela de cadastro)
+ */
+function bindCEP(cepId, campos = {}, publico = false) {
+  const input = document.getElementById(cepId);
+  if (!input || input.dataset.cepBound === '1') return;
+  input.dataset.cepBound = '1';
+
+  let ultimo = '';
+  const buscar = async () => {
+    const cep = onlyDigits(input.value);
+    if (cep.length !== 8) {
+      if (cep.length) fieldHint(input, 'Informe os 8 números do CEP.', 'err');
+      else fieldHint(input, '');
+      return;
+    }
+    if (cep === ultimo) return;
+    ultimo = cep;
+
+    fieldHint(input, 'Buscando endereço...', 'loading');
+    try {
+      const r = publico ? await consultarCEPPublico(cep) : await consultarCEP(cep);
+      if (r.unavailable) { fieldHint(input, r.reason || 'Consulta indisponível. Preencha manualmente.', 'err'); return; }
+      const d = r.data || {};
+      preencherCampo(document.getElementById(campos.logradouro), d.logradouro);
+      preencherCampo(document.getElementById(campos.bairro), d.bairro);
+      preencherCampo(document.getElementById(campos.cidade), d.cidade);
+      preencherCampo(document.getElementById(campos.estado), d.estado);
+      fieldHint(input, 'Endereço preenchido automaticamente. Confira antes de salvar.', 'ok');
+    } catch (e) {
+      ultimo = '';
+      fieldHint(input, e.message || 'Não foi possível consultar o CEP.', 'err');
+    }
+  };
+
+  input.addEventListener('input', () => { input.value = maskCEP(input.value); if (onlyDigits(input.value).length === 8) buscar(); });
+  input.addEventListener('blur', buscar);
 }
 
 // ── DATAS LOCAIS (evita o deslocamento do fuso UTC) ──
@@ -576,8 +733,13 @@ function toast(msg, type = 'ok') {
 }
 
 // ── INIT ──
+// O controle de acesso roda imediatamente (o script fica no fim do <body>),
+// antes da primeira pintura, para que módulos fora do plano nunca apareçam.
+enforceAccess();
+
 document.addEventListener('DOMContentLoaded', () => {
   enforceAccess();
+  revalidarModulos();
   setActiveNav();
   initMenu();
   initDrawer();

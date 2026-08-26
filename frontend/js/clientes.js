@@ -130,8 +130,27 @@ function formHTML(c) {
       <span class="stat-lbl" id="doc-hint">${pj ? 'A razão social e o endereço são preenchidos automaticamente pela Receita Federal.' : 'Validação pelos dígitos verificadores oficiais.'}</span></div>
 
     <div class="fg" id="fg-razao" style="${pj ? '' : 'display:none;'}">
-      <label>Razão social *</label>
+      <label for="f-razao">Razão social *</label>
       <input type="text" class="fc" id="f-razao" value="${esc(c ? (c.company_name || '') : '')}" placeholder="Razão social da empresa"></div>
+
+    <div class="fg" id="fg-fantasia" style="${pj ? '' : 'display:none;'}">
+      <label for="f-fantasia">Nome fantasia</label>
+      <input type="text" class="fc" id="f-fantasia" value="${esc(c ? (c.trade_name || '') : '')}" placeholder="Nome fantasia"></div>
+
+    <div class="fg" id="fg-nasc" style="${pj ? 'display:none;' : ''}">
+      <label for="f-nasc">Data de nascimento</label>
+      <input type="date" class="fc" id="f-nasc" value="${esc(c && c.birth_date ? String(c.birth_date).slice(0, 10) : '')}"></div>
+
+    <div class="grid-2" id="fg-receita">
+      <div class="fg"><label for="f-situacao">Situação cadastral</label>
+        <input type="text" class="fc" id="f-situacao" value="${esc(c ? (c.registration_status || '') : '')}" placeholder="Consultada automaticamente"></div>
+      <div class="fg" id="fg-abertura" style="${pj ? '' : 'display:none;'}">
+        <label for="f-abertura">Data de abertura</label>
+        <input type="date" class="fc" id="f-abertura" value="${esc(c && c.opening_date ? String(c.opening_date).slice(0, 10) : '')}"></div>
+    </div>
+    <div class="fg" id="fg-cnae" style="${pj ? '' : 'display:none;'}">
+      <label for="f-cnae">CNAE principal</label>
+      <input type="text" class="fc" id="f-cnae" value="${esc(c ? (c.cnae || '') : '')}" placeholder="Atividade econômica principal"></div>
 
     <div class="d-divider"></div>
     <div class="d-section"><i class="fas fa-user"></i> Contato</div>
@@ -176,46 +195,66 @@ function bindDocumento() {
       document.getElementById('lbl-doc').textContent = pj ? 'CNPJ *' : 'CPF *';
       document.getElementById('lbl-nome').textContent = pj ? 'Nome do contato / fantasia *' : 'Nome completo *';
       document.getElementById('fg-razao').style.display = pj ? '' : 'none';
+      document.getElementById('fg-fantasia').style.display = pj ? '' : 'none';
+      document.getElementById('fg-cnae').style.display = pj ? '' : 'none';
+      document.getElementById('fg-abertura').style.display = pj ? '' : 'none';
+      document.getElementById('fg-nasc').style.display = pj ? 'none' : '';
       document.getElementById('doc-hint').textContent = pj
         ? 'A razão social e o endereço são preenchidos automaticamente pela Receita Federal.'
         : 'Validação pelos dígitos verificadores oficiais.';
     });
   });
 
-  const cep = document.getElementById('f-cep');
-  if (cep) {
-    cep.addEventListener('input', () => { cep.value = maskCEP(cep.value); });
-    cep.addEventListener('blur', async () => {
-      if (onlyDigits(cep.value).length !== 8) return;
-      try {
-        const r = await consultarCEP(cep.value);
-        if (r.data) {
-          document.getElementById('f-rua').value = r.data.logradouro || '';
-          document.getElementById('f-bairro').value = r.data.bairro || '';
-          document.getElementById('f-cidade').value = r.data.cidade || '';
-          document.getElementById('f-estado').value = r.data.estado || '';
-        }
-      } catch (e) { toast(e.message, 'err'); }
+  bindCEP('f-cep', {
+    logradouro: 'f-rua', bairro: 'f-bairro', cidade: 'f-cidade', estado: 'f-estado',
+  });
+
+  // Consulta automática do documento assim que ele estiver completo.
+  const campoDoc = document.getElementById('f-doc');
+  if (campoDoc && !campoDoc.disabled) {
+    let ultimoDoc = '';
+    campoDoc.addEventListener('blur', () => {
+      const digitos = onlyDigits(campoDoc.value);
+      const completo = tipoSelecionado() === 'CNPJ' ? digitos.length === 14 : digitos.length === 11;
+      if (!completo || digitos === ultimoDoc) return;
+      ultimoDoc = digitos;
+      consultarDocumento();
     });
   }
 
   const botao = document.getElementById('btn-consulta');
-  if (botao) botao.addEventListener('click', consultarDocumento);
+  if (botao) botao.addEventListener('click', () => runAction(botao, consultarDocumento, 'Consultando...'));
 }
 
 async function consultarDocumento() {
   const tipo = tipoSelecionado();
-  const valor = document.getElementById('f-doc').value;
+  const campo = document.getElementById('f-doc');
+  const valor = campo.value;
+  fieldHint(campo, 'Consultando os dados públicos...', 'loading');
 
   if (tipo === 'CPF') {
-    if (!isValidCPF(valor)) return toast('CPF inválido: confira os dígitos verificadores.', 'err');
-    return toast('CPF válido.');
+    if (!isValidCPF(valor)) { fieldHint(campo, 'CPF inválido: confira os dígitos verificadores.', 'err'); return toast('CPF inválido: confira os dígitos verificadores.', 'err'); }
+    try {
+      const r = await consultarCPF(valor);
+      const d = r.data || {};
+      const nome = document.getElementById('f-nome');
+      if (d.nome && !nome.value) nome.value = d.nome;
+      if (d.nascimento) document.getElementById('f-nasc').value = String(d.nascimento).slice(0, 10);
+      if (d.situacao) document.getElementById('f-situacao').value = d.situacao;
+      if (d.cidade && !document.getElementById('f-cidade').value) document.getElementById('f-cidade').value = d.cidade;
+      if (d.estado && !document.getElementById('f-estado').value) document.getElementById('f-estado').value = d.estado;
+      fieldHint(campo, d.nome ? 'CPF localizado. Confira os dados preenchidos.' : 'CPF válido. Complete os dados manualmente.', 'ok');
+      return toast(d.nome ? 'CPF localizado.' : 'CPF válido. Complete os dados manualmente.');
+    } catch (e) {
+      fieldHint(campo, e.message || 'Não foi possível consultar o CPF.', 'err');
+      return toast(e.message, 'err');
+    }
   }
 
-  if (!isValidCNPJ(valor)) return toast('CNPJ inválido: confira os dígitos verificadores.', 'err');
+  if (!isValidCNPJ(valor)) { fieldHint(campo, 'CNPJ inválido: confira os dígitos verificadores.', 'err'); return toast('CNPJ inválido: confira os dígitos verificadores.', 'err'); }
   try {
     const r = await consultarCNPJ(valor);
-    if (r.unavailable) return toast('CNPJ válido (consulta à Receita indisponível agora).');
+    if (r.unavailable) { fieldHint(campo, 'Consulta à Receita indisponível agora. Preencha manualmente.', 'err'); return toast('CNPJ válido (consulta à Receita indisponível agora).'); }
     const d = r.data || {};
     document.getElementById('f-razao').value = d.razaoSocial || '';
     if (!document.getElementById('f-nome').value) document.getElementById('f-nome').value = d.nomeFantasia || d.razaoSocial || '';
@@ -224,6 +263,15 @@ async function consultarDocumento() {
     document.getElementById('f-bairro').value = d.bairro || '';
     document.getElementById('f-cidade').value = d.cidade || '';
     document.getElementById('f-estado').value = d.estado || '';
+    document.getElementById('f-fantasia').value = d.nomeFantasia || '';
+    document.getElementById('f-situacao').value = d.situacao || '';
+    document.getElementById('f-cnae').value = d.cnae || '';
+    if (d.dataAbertura) document.getElementById('f-abertura').value = String(d.dataAbertura).slice(0, 10);
+    if (d.email && !document.getElementById('f-email').value) document.getElementById('f-email').value = d.email;
+    if (d.telefone && !document.getElementById('f-tel').value) {
+      document.getElementById('f-tel').value = maskPhone(d.telefone);
+    }
+    fieldHint(campo, 'Dados da Receita Federal preenchidos. Revise antes de salvar.', 'ok');
     toast('CNPJ localizado na Receita Federal.');
   } catch (e) {
     toast(e.message, 'err');
@@ -274,6 +322,11 @@ async function saveCliente() {
     neighborhood: document.getElementById('f-bairro').value.trim(),
     city: document.getElementById('f-cidade').value.trim(),
     state: document.getElementById('f-estado').value.trim().toUpperCase(),
+    tradeName: (document.getElementById('f-fantasia') || {}).value || null,
+    birthDate: (document.getElementById('f-nasc') || {}).value || null,
+    registrationStatus: (document.getElementById('f-situacao') || {}).value || null,
+    cnae: (document.getElementById('f-cnae') || {}).value || null,
+    openingDate: (document.getElementById('f-abertura') || {}).value || null,
   };
 
   const url = editingId ? `${API_URL}/customers/${editingId}` : `${API_URL}/customers`;

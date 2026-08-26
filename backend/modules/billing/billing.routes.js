@@ -1,5 +1,5 @@
-// Módulo Assinatura — rotas de plano, mensalidade e pagamentos.
-// O webhook do Mercado Pago é público (chamado pelo gateway).
+// Módulo Assinatura — rotas de plano, mensalidade e solicitações
+// manuais de pagamento (Pix / boleto). Não há webhook de gateway.
 const express = require('express');
 const controller = require('./billing.controller');
 const { authenticate } = require('../../middleware/auth');
@@ -10,15 +10,13 @@ const { ROLES } = require('../../config/roles');
 const router = express.Router();
 const onlyAdmin = authorize(ROLES.COMPANY_ADMIN);
 
-// Rota pública: confirmação automática de pagamento.
-router.post('/webhook', asyncHandler(controller.webhook));
-
 router.use(authenticate, tenantScope);
 
 router.get('/subscription', asyncHandler(controller.subscription));
 router.get('/plans', asyncHandler(controller.plans));
 router.get('/payments', asyncHandler(controller.payments));
-router.post('/checkout', onlyAdmin, asyncHandler(controller.checkout));
+router.get('/requests', asyncHandler(controller.requests));
+router.post('/renewal-request', onlyAdmin, asyncHandler(controller.requestRenewal));
 router.put('/plan', onlyAdmin, asyncHandler(controller.changePlan));
 
 module.exports = router;

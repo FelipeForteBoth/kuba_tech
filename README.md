@@ -64,3 +64,16 @@ kuba_tech/
     js/*.js
     img/
 ```
+
+## Variáveis de ambiente (v3)
+
+| Variável | Uso |
+| --- | --- |
+| `MP_ACCESS_TOKEN` | Access token do Mercado Pago (Checkout Pro). Sem ele, as cobranças ficam registradas em modo demonstração. |
+| `MP_WEBHOOK_URL` | URL pública do webhook `POST /api/billing/webhook`. |
+| `BREVO_API_KEY` ou `RESEND_API_KEY` | Envio de e-mails (planos gratuitos). |
+| `MAIL_FROM` / `MAIL_FROM_NAME` | Remetente dos e-mails automáticos. |
+| `CPF_API_URL` / `CPF_API_TOKEN` | Opcional: API de consulta de CPF (`{cpf}` no lugar do número). |
+| `APP_URL` | URL do front (links de pagamento nos e-mails). |
+
+Aplicar as migrações após o deploy: `cd backend && npm run migrate`.

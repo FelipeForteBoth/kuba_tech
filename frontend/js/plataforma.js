@@ -2,6 +2,7 @@
 let tenants = [];
 let plans = [];
 let sortDir = 1;
+let solicitacoes = [];
 
 const STATUS_LABEL = { active: 'Ativa', suspended: 'Suspensa', canceled: 'Cancelada' };
 const STATUS_BADGE = { active: 'badge-done', suspended: 'badge-prog', canceled: 'badge-del' };
@@ -22,6 +23,87 @@ function diasParaCancelar(suspendedAt) {
   const limite = new Date(suspendedAt);
   limite.setMonth(limite.getMonth() + 2);
   return Math.ceil((limite - new Date()) / 86400000);
+}
+
+const REQ_STATUS = {
+  sent: ['Solicitação enviada', 'badge-todo'],
+  in_service: ['Em atendimento', 'badge-prog'],
+  info_sent: ['Informações enviadas', 'badge-prog'],
+  awaiting_confirmation: ['Aguardando confirmação', 'badge-prog'],
+  confirmed: ['Pagamento confirmado', 'badge-done'],
+  canceled: ['Cancelada', 'badge-del'],
+};
+
+// ── Solicitações manuais de pagamento (Pix / boleto) ──
+async function loadSolicitacoes() {
+  const box = document.getElementById('solicitacoes');
+  if (!box) return;
+  const filtro = document.getElementById('filtro-solic').value;
+  box.innerHTML = stateMsg('loading', 'Carregando solicitações...');
+  try {
+    const res = await authFetch(`${API_URL}/platform/payment-requests?status=${filtro}&t=${Date.now()}`);
+    if (!res.ok) throw new Error('requests');
+    solicitacoes = await res.json();
+    renderSolicitacoes();
+  } catch (e) {
+    console.error(e);
+    box.innerHTML = stateMsg('error', 'Não foi possível carregar as solicitações.');
+  }
+}
+
+function renderSolicitacoes() {
+  const box = document.getElementById('solicitacoes');
+  if (!solicitacoes.length) {
+    box.innerHTML = stateMsg('empty', 'Nenhuma solicitação de pagamento no momento.');
+    return;
+  }
+  box.innerHTML = solicitacoes.map((s) => {
+    const [label, cls] = REQ_STATUS[s.status] || [s.status_label || s.status, 'badge-todo'];
+    return `<article class="pay-card">
+      <div class="pay-card-hd">
+        <strong>${esc(s.company_name || '—')}</strong>
+        <span class="badge ${cls}">${esc(label)}</span>
+      </div>
+      <p><span>Plano</span> ${esc(s.plan_name || '—')} · ${money(s.amount)}</p>
+      <p><span>Forma</span> ${esc(s.method_label || s.method)}</p>
+      <p><span>Solicitante</span> ${esc(s.requester_name || '—')} · ${fmtDateTime(s.created_at)}</p>
+      <div class="fg">
+        <label for="st-${s.id}">Atualizar situação</label>
+        <select class="fc" id="st-${s.id}">
+          ${Object.keys(REQ_STATUS).map((k) => `<option value="${k}" ${k === s.status ? 'selected' : ''}>${REQ_STATUS[k][0]}</option>`).join('')}
+        </select>
+      </div>
+      <div class="fg">
+        <label for="nt-${s.id}">Observações enviadas à empresa</label>
+        <textarea class="fc" id="nt-${s.id}" rows="2" placeholder="Chave Pix, código do boleto ou orientações...">${esc(s.notes || '')}</textarea>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="salvarSolicitacao('${s.id}', this)">
+        <i class="fas fa-paper-plane"></i> Atualizar e notificar
+      </button>
+    </article>`;
+  }).join('');
+}
+
+async function salvarSolicitacao(id, btn) {
+  const status = document.getElementById(`st-${id}`).value;
+  const notes = document.getElementById(`nt-${id}`).value.trim();
+  await runAction(btn, async () => {
+    try {
+      const res = await authFetch(`${API_URL}/platform/payment-requests/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, notes }),
+      });
+      const data = await res.json();
+      if (!res.ok) return toast(data.error || 'Não foi possível atualizar a solicitação.', 'err');
+      toast(data.message || 'Solicitação atualizada.', 'ok');
+      await Promise.all([loadSolicitacoes(), loadTudo()]);
+    } catch (e) {
+      console.error(e);
+      toast('Falha de comunicação com o servidor.', 'err');
+    }
+    return undefined;
+  }, 'Salvando...');
 }
 
 async function loadTudo() {
@@ -134,6 +216,7 @@ function viewEmpresa(id) {
   if (t.status === 'canceled') {
     acoes.push(`<button class="btn btn-del btn-sm" onclick="deleteEmpresa('${t.id}')"><i class="fas fa-trash"></i> Excluir</button>`);
   }
+  acoes.push(`<button class="btn btn-ghost btn-sm" onclick="enviarCobranca('${t.id}')"><i class="fas fa-envelope"></i> Enviar cobrança</button>`);
   acoes.push('<button class="btn btn-ghost btn-sm" onclick="closeDrawer()">Fechar</button>');
   acoes.push(`<button class="btn btn-primary btn-sm" onclick="saveEmpresa('${t.id}')"><i class="fas fa-save"></i> Salvar</button>`);
   document.getElementById('drawer-ft').innerHTML = acoes.join('');
@@ -202,6 +285,20 @@ async function createEmpresa() {
   }
 }
 
+/** Envia manualmente, por e-mail, a cobrança da mensalidade em atraso. */
+async function enviarCobranca(id) {
+  if (!confirm('Enviar a cobrança da mensalidade por e-mail para esta empresa?')) return;
+  try {
+    const res = await authFetch(`${API_URL}/platform/tenants/${id}/charge`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) return toast(data.message || 'Não foi possível enviar a cobrança.', 'err');
+    toast(data.message, 'ok');
+  } catch (e) {
+    console.error(e);
+    toast('Falha de comunicação com o servidor.', 'err');
+  }
+}
+
 async function deleteEmpresa(id) {
   const t = tenants.find((x) => x.id === id);
   if (!t) return;
@@ -255,6 +352,9 @@ async function saveEmpresa(id) {
 document.addEventListener('DOMContentLoaded', () => {
   if (!getSession()) return;
   loadTudo();
+  loadSolicitacoes();
+  const filtro = document.getElementById('filtro-solic');
+  if (filtro) filtro.addEventListener('change', loadSolicitacoes);
   const btnNew = document.getElementById('btn-new');
   if (btnNew) btnNew.addEventListener('click', newEmpresa);
   document.getElementById('search-input').addEventListener('input', applyFilter);

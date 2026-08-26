@@ -1,10 +1,11 @@
-// Módulo Assinatura — acesso a dados de planos, cobranças e pagamentos.
+// Módulo Assinatura — acesso a dados de planos, cobranças manuais e
+// solicitações de renovação (Pix / Boleto).
 const db = require('../../config/database');
 
 /** Assinatura vigente da empresa (plano, valor e vencimento). */
 const findSubscription = (tenantId) =>
   db.one(
-    `SELECT t.id, t.company_name, t.email, t.billing_email, t.status, t.next_due_date,
+    `SELECT t.id, t.company_name, t.document, t.email, t.billing_email, t.status, t.next_due_date,
             t.last_payment_at, t.suspended_at,
             p.id AS plan_id, p.code AS plan_code, p.name AS plan_name,
             p.monthly_price, p.max_users
@@ -29,16 +30,13 @@ const findPlan = (planId) => db.one('SELECT * FROM plans WHERE id = $1 AND activ
 
 const listPayments = (tenantId, limit = 50) =>
   db.all(
-    `SELECT id, plan_name, amount, status, provider, external_id, checkout_url,
+    `SELECT id, plan_name, amount, status, provider, method, external_id,
             due_date, paid_at, created_at
        FROM payments WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT $2`,
     [tenantId, limit],
   );
 
 const findPayment = (id) => db.one('SELECT * FROM payments WHERE id = $1', [id]);
-
-const findPaymentByExternal = (externalId) =>
-  db.one('SELECT * FROM payments WHERE external_id = $1 ORDER BY created_at DESC LIMIT 1', [externalId]);
 
 /** Cobrança em aberto mais recente (evita duplicar cobranças). */
 const findOpenPayment = (tenantId) =>
@@ -48,29 +46,24 @@ const findOpenPayment = (tenantId) =>
     [tenantId],
   );
 
-const createPayment = (tenantId, { planId, planName, amount, dueDate }) =>
+const createPayment = (tenantId, { planId, planName, amount, dueDate, method }) =>
   db.one(
-    `INSERT INTO payments (tenant_id, plan_id, plan_name, amount, due_date, status)
-     VALUES ($1,$2,$3,$4,$5,'pending') RETURNING *`,
-    [tenantId, planId, planName, amount, dueDate],
+    `INSERT INTO payments (tenant_id, plan_id, plan_name, amount, due_date, status, provider, method)
+     VALUES ($1,$2,$3,$4,$5,'pending','manual',$6) RETURNING *`,
+    [tenantId, planId, planName, amount, dueDate, method || null],
   );
 
-const attachCheckout = (id, { preferenceId, checkoutUrl, externalId }) =>
-  db.one(
-    `UPDATE payments SET preference_id = $2, checkout_url = $3,
-            external_id = COALESCE($4, external_id), updated_at = NOW()
-      WHERE id = $1 RETURNING *`,
-    [id, preferenceId, checkoutUrl, externalId],
-  );
+const setPaymentMethod = (id, method) =>
+  db.one('UPDATE payments SET method = $2, updated_at = NOW() WHERE id = $1 RETURNING *', [id, method]);
 
-/** Confirma o pagamento e renova a assinatura por mais 30 dias. */
+/** Confirma o pagamento (baixa manual) e renova a assinatura por 30 dias. */
 async function approvePayment(paymentId, externalId) {
   return db.transaction(async (client) => {
     const paid = await client.query(
       `UPDATE payments SET status = 'approved', paid_at = NOW(),
               external_id = COALESCE($2, external_id), updated_at = NOW()
         WHERE id = $1 AND status <> 'approved' RETURNING *`,
-      [paymentId, externalId],
+      [paymentId, externalId || null],
     );
     if (!paid.rows[0]) return null;
 
@@ -86,7 +79,7 @@ async function approvePayment(paymentId, externalId) {
 }
 
 const updatePaymentStatus = (id, status) =>
-  db.one(`UPDATE payments SET status = $2, updated_at = NOW() WHERE id = $1 RETURNING *`, [id, status]);
+  db.one('UPDATE payments SET status = $2, updated_at = NOW() WHERE id = $1 RETURNING *', [id, status]);
 
 /** Troca o plano da empresa e sincroniza os módulos habilitados. */
 async function changePlan(tenantId, planId) {
@@ -104,17 +97,77 @@ async function changePlan(tenantId, planId) {
   });
 }
 
+// ── Solicitações de renovação (fluxo manual) ────────────────────────
+const OPEN_REQUEST_STATUS = ['sent', 'in_service', 'info_sent', 'awaiting_confirmation'];
+
+/** Solicitação em andamento da empresa (evita pedidos duplicados). */
+const findOpenRequest = (tenantId) =>
+  db.one(
+    `SELECT * FROM payment_requests
+      WHERE tenant_id = $1 AND status = ANY($2::varchar[])
+      ORDER BY created_at DESC LIMIT 1`,
+    [tenantId, OPEN_REQUEST_STATUS],
+  );
+
+const createRequest = (tenantId, { paymentId, userId, requesterName, requesterEmail, method, planName, amount }) =>
+  db.one(
+    `INSERT INTO payment_requests
+       (tenant_id, payment_id, requested_by, requester_name, requester_email, method, plan_name, amount)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+    [tenantId, paymentId || null, userId || null, requesterName, requesterEmail, method, planName, amount],
+  );
+
+/** Histórico de solicitações da própria empresa (escopo do tenant). */
+const listRequests = (tenantId, limit = 30) =>
+  db.all(
+    `SELECT id, method, status, plan_name, amount, notes, requester_name, created_at, updated_at
+       FROM payment_requests WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT $2`,
+    [tenantId, limit],
+  );
+
+/** Todas as solicitações (Administrador da Plataforma). */
+const listAllRequests = (status) => {
+  const base = `
+    SELECT r.*, t.company_name, t.document, t.email AS company_email, t.billing_email
+      FROM payment_requests r JOIN tenants t ON t.id = r.tenant_id`;
+  if (status) return db.all(`${base} WHERE r.status = $1 ORDER BY r.created_at DESC LIMIT 200`, [status]);
+  return db.all(`${base} ORDER BY r.created_at DESC LIMIT 200`, []);
+};
+
+const findRequest = (id) =>
+  db.one(
+    `SELECT r.*, t.company_name, t.email AS company_email, t.billing_email
+       FROM payment_requests r JOIN tenants t ON t.id = r.tenant_id WHERE r.id = $1`,
+    [id],
+  );
+
+const updateRequest = (id, { status, notes }) =>
+  db.one(
+    `UPDATE payment_requests
+        SET status = COALESCE($2, status),
+            notes  = COALESCE($3, notes),
+            updated_at = NOW()
+      WHERE id = $1 RETURNING *`,
+    [id, status || null, notes === undefined ? null : notes],
+  );
+
 module.exports = {
+  OPEN_REQUEST_STATUS,
   findSubscription,
   listPlans,
   findPlan,
   listPayments,
   findPayment,
-  findPaymentByExternal,
   findOpenPayment,
   createPayment,
-  attachCheckout,
+  setPaymentMethod,
   approvePayment,
   updatePaymentStatus,
   changePlan,
+  findOpenRequest,
+  createRequest,
+  listRequests,
+  listAllRequests,
+  findRequest,
+  updateRequest,
 };

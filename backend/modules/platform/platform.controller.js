@@ -100,7 +100,6 @@ async function updateStatus(req, res) {
   let email = null;
   if (status === 'suspended') {
     const assinatura = await billingModel.findSubscription(updated.id);
-    const cobranca = await billingModel.findOpenPayment(updated.id);
     email = await mailer.sendTemplate(
       'empresaSuspensa',
       assinatura.billing_email || assinatura.email,
@@ -109,7 +108,6 @@ async function updateStatus(req, res) {
         planName: assinatura.plan_name,
         amount: assinatura.monthly_price,
         dueDate: assinatura.next_due_date,
-        paymentUrl: cobranca && cobranca.checkout_url,
       },
       updated.id,
     );
@@ -119,12 +117,12 @@ async function updateStatus(req, res) {
 }
 
 /**
- * POST /tenants/:id/charge — o Administrador da Plataforma envia
- * manualmente a cobrança da mensalidade em atraso por e-mail.
+ * POST /tenants/:id/charge — o Administrador da Plataforma avisa a
+ * empresa, por e-mail, que a mensalidade está em aberto.
  */
 async function charge(req, res) {
   if (!isValidUUID(req.params.id)) throw new AppError('Identificador inválido.');
-  const { assinatura, pagamento } = await billing.gerarCobranca(req.params.id);
+  const { assinatura, pagamento } = await billing.garantirCobranca(req.params.id);
 
   const email = await mailer.sendTemplate(
     'cobranca',
@@ -134,7 +132,6 @@ async function charge(req, res) {
       planName: assinatura.plan_name,
       amount: assinatura.monthly_price,
       dueDate: assinatura.next_due_date,
-      paymentUrl: pagamento.checkout_url,
     },
     assinatura.id,
   );
@@ -155,6 +152,77 @@ async function emails(req, res) {
   if (!isValidUUID(req.params.id)) throw new AppError('Identificador inválido.');
   res.json(await mailer.listLogs(req.params.id));
 }
+
+// ── Solicitações manuais de pagamento (Pix / boleto) ────────────────
+
+/** GET /payment-requests — todas as solicitações das empresas. */
+async function paymentRequests(req, res) {
+  const status = String(req.query.status || '').trim() || null;
+  const lista = await billingModel.listAllRequests(status);
+  res.json(lista.map((r) => ({
+    ...r,
+    method_label: billing.METHODS[r.method] || r.method,
+    status_label: billing.REQUEST_STATUS_LABEL[r.status] || r.status,
+  })));
+}
+
+/**
+ * PATCH /payment-requests/:id — atualiza o andamento da solicitação.
+ * Ao confirmar o pagamento, a assinatura é renovada por mais 30 dias.
+ */
+async function updatePaymentRequest(req, res) {
+  if (!isValidUUID(req.params.id)) throw new AppError('Identificador inválido.');
+  const status = String(req.body.status || '').trim();
+  const notes = req.body.notes === undefined ? undefined : String(req.body.notes).trim();
+
+  if (status && !billing.REQUEST_STATUS_LABEL[status]) throw new AppError('Situação da solicitação inválida.');
+
+  const atual = await billingModel.findRequest(req.params.id);
+  if (!atual) throw new AppError('Solicitação não encontrada.', 404);
+
+  const atualizada = await billingModel.updateRequest(atual.id, { status, notes });
+
+  // Confirmação do pagamento: dá baixa na cobrança e renova a assinatura.
+  if (status === 'confirmed') {
+    const pagamento = atual.payment_id
+      ? await billingModel.approvePayment(atual.payment_id, null)
+      : null;
+    if (pagamento) {
+      const assinatura = await billingModel.findSubscription(atual.tenant_id);
+      await mailer.sendTemplate(
+        'pagamentoAprovado',
+        assinatura.billing_email || assinatura.email,
+        {
+          companyName: assinatura.company_name,
+          planName: assinatura.plan_name,
+          amount: pagamento.payment.amount,
+          paidAt: pagamento.payment.paid_at,
+          nextDueDate: assinatura.next_due_date,
+        },
+        atual.tenant_id,
+      );
+    }
+  } else if (status) {
+    await mailer.sendTemplate(
+      'solicitacaoAtualizada',
+      atual.billing_email || atual.company_email,
+      {
+        companyName: atual.company_name,
+        method: billing.METHODS[atual.method] || atual.method,
+        statusLabel: billing.REQUEST_STATUS_LABEL[status],
+        notes: atualizada.notes,
+      },
+      atual.tenant_id,
+    );
+  }
+
+  res.json({
+    ...atualizada,
+    status_label: billing.REQUEST_STATUS_LABEL[atualizada.status] || atualizada.status,
+    message: 'Solicitação atualizada.',
+  });
+}
+
 
 
 async function changePlan(req, res) {
@@ -181,4 +249,7 @@ async function metrics(_req, res) {
   res.json(await model.metrics());
 }
 
-module.exports = { tenants, tenant, store, destroy, updateStatus, changePlan, plans, modules, metrics, charge, emails };
+module.exports = {
+  tenants, tenant, store, destroy, updateStatus, changePlan, plans, modules, metrics,
+  charge, emails, paymentRequests, updatePaymentRequest,
+};
