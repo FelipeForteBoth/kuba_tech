@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Recuperar senha — Kuba Tech</title>
+    <meta name="description" content="Solicite a recuperação da sua senha no Kuba Tech. O pedido é aprovado pelo responsável da sua empresa ou pela equipe da plataforma." />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../css/auth.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Ir para o conteúdo</a>
+
+    <header class="au-nav">
+      <a href="../index.html" class="au-brand">
+        <span class="au-brand-icon" aria-hidden="true"><i class="fas fa-tools"></i></span>
+        Kuba Tech
+      </a>
+      <a href="login.html" class="au-back"><i class="fas fa-arrow-left" aria-hidden="true"></i> Voltar ao login</a>
+    </header>
+
+    <main class="au-main" id="main-content">
+      <div class="au-card">
+        <h1 class="au-title">Recuperar senha</h1>
+        <p class="au-sub">
+          Sua solicitação passa por aprovação: funcionários são aprovados pelo Administrador
+          da sua empresa e Administradores de Empresa pela equipe Kuba Tech. Após a aprovação,
+          você recebe por e-mail um link para cadastrar a nova senha.
+        </p>
+
+        <form id="form-recuperar" novalidate>
+          <div class="au-field">
+            <label for="email">E-mail cadastrado</label>
+            <input type="email" id="email" name="email" placeholder="voce@empresa.com.br"
+                   autocomplete="username" inputmode="email" required />
+          </div>
+
+          <div class="au-field">
+            <label for="motivo">Motivo (opcional)</label>
+            <input type="text" id="motivo" name="motivo" maxlength="300"
+                   placeholder="Ex.: esqueci a senha após as férias" />
+          </div>
+
+          <button type="submit" class="au-btn" id="btn-enviar">
+            <i class="fas fa-paper-plane" aria-hidden="true"></i> Enviar solicitação
+          </button>
+        </form>
+
+        <p class="au-msg" id="mensagem" role="status" aria-live="polite"></p>
+
+        <p class="au-foot">
+          Lembrou a senha? <a href="login.html">Entrar na plataforma</a>
+        </p>
+      </div>
+    </main>
+
+    <script src="../js/config.js"></script>
+    <script src="../js/shared.js"></script>
+    <script src="../js/esqueci-senha.js"></script>
+  </body>
+</html>

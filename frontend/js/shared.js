@@ -46,6 +46,11 @@ async function authFetch(url, opts = {}) {
     window.location.href = '/html/login.html';
     throw new Error('Não autenticado');
   }
+  // 423: senha temporária ainda não trocada.
+  if (res.status === 423) {
+    window.location.href = `/html/${CHANGE_PASSWORD_PAGE}.html`;
+    throw new Error('Troca de senha obrigatória');
+  }
   if (res.status === 403) {
     let message = 'Acesso negado para o seu perfil de usuário.';
     try {
@@ -58,9 +63,54 @@ async function authFetch(url, opts = {}) {
   return res;
 }
 
-function logout() {
+function logout(motivo = '') {
   localStorage.clear();
-  window.location.href = '/html/login.html';
+  const query = motivo ? `?motivo=${encodeURIComponent(motivo)}` : '';
+  window.location.href = `/html/login.html${query}`;
+}
+
+// ── SESSÃO CURTA: encerramento automático por inatividade ──
+// Regra do TCC: 10 minutos sem interação encerram a sessão.
+const INATIVIDADE_MS = 10 * 60 * 1000;
+const RENOVA_MS = 4 * 60 * 1000; // renova o token enquanto houver atividade
+let inatividadeTimer = null;
+let ultimaAtividade = Date.now();
+let ultimaRenovacao = Date.now();
+
+async function renovarToken() {
+  const session = getSession();
+  if (!session) return;
+  try {
+    const res = await fetch(`${API_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+    });
+    if (!res.ok) return;
+    const dados = await res.json();
+    setSession(dados.token, dados.usuario);
+    ultimaRenovacao = Date.now();
+  } catch {
+    /* sem conexão: o token atual continua valendo até expirar */
+  }
+}
+
+function registrarAtividade() {
+  ultimaAtividade = Date.now();
+  if (Date.now() - ultimaRenovacao > RENOVA_MS) renovarToken();
+}
+
+function initInatividade() {
+  if (!getSession() || PUBLIC_PAGES.includes(currentPage())) return;
+  ['click', 'keydown', 'mousemove', 'scroll', 'touchstart', 'input'].forEach((ev) =>
+    document.addEventListener(ev, registrarAtividade, { passive: true }));
+
+  clearInterval(inatividadeTimer);
+  inatividadeTimer = setInterval(() => {
+    if (Date.now() - ultimaAtividade >= INATIVIDADE_MS) {
+      clearInterval(inatividadeTimer);
+      logout('inatividade');
+    }
+  }, 30000);
 }
 
 // ── RBAC (espelha as regras aplicadas no back-end) ──
@@ -73,7 +123,10 @@ const ROLE_LABELS = {
 };
 
 // Páginas públicas (sem sessão).
-const PUBLIC_PAGES = ['login', 'cadastro', 'portal'];
+const PUBLIC_PAGES = ['login', 'cadastro', 'portal', 'esqueci-senha', 'redefinir-senha'];
+
+// Página obrigatória no primeiro acesso (senha temporária).
+const CHANGE_PASSWORD_PAGE = 'trocar-senha';
 
 // Páginas que cada perfil pode abrir.
 const PAGE_ACCESS = {
@@ -102,7 +155,7 @@ const WRITE_ACCESS = {
   orderStatus: ['company_admin', 'attendant', 'technician'],
   users: ['company_admin'],
   companySettings: ['company_admin'],
-  billing: ['company_admin'],
+  plan: ['company_admin'],
   schedule: ['company_admin', 'attendant'],
   photos: ['company_admin', 'attendant', 'technician'],
   signature: ['company_admin', 'attendant', 'technician'],
@@ -166,6 +219,20 @@ function enforceAccess() {
   const session = getSession();
   if (!session) {
     window.location.href = '/html/login.html';
+    return;
+  }
+
+  // Primeiro acesso com senha temporária: nada é liberado antes da troca.
+  if (session.usuario.trocarSenha) {
+    if (page !== CHANGE_PASSWORD_PAGE) {
+      window.location.href = `/html/${CHANGE_PASSWORD_PAGE}.html`;
+      return;
+    }
+    liberarInterface();
+    return;
+  }
+  if (page === CHANGE_PASSWORD_PAGE) {
+    liberarInterface();
     return;
   }
 
@@ -745,4 +812,5 @@ document.addEventListener('DOMContentLoaded', () => {
   initDrawer();
   applyMasks();
   injectLogoutButton();
+  initInatividade();
 });

@@ -58,7 +58,6 @@ async function buscarEmpresaPorCNPJ() {
     preencherCampo(document.getElementById('state'), d.estado);
 
     const extras = [d.nomeFantasia && `Nome fantasia: ${d.nomeFantasia}`,
-      d.situacao && `Situação: ${d.situacao}`,
       d.cidade && `${d.cidade}${d.estado ? '/' + d.estado : ''}`].filter(Boolean).join(' · ');
     fieldHint(input, `Dados encontrados. Revise antes de continuar.${extras ? ' ' + extras : ''}`, 'ok');
   } catch (e) {

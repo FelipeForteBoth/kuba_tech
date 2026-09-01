@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cadastrar nova senha — Kuba Tech</title>
+    <meta name="description" content="Cadastre uma nova senha de acesso ao Kuba Tech usando o link aprovado pelo responsável." />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../css/auth.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Ir para o conteúdo</a>
+
+    <header class="au-nav">
+      <a href="../index.html" class="au-brand">
+        <span class="au-brand-icon" aria-hidden="true"><i class="fas fa-tools"></i></span>
+        Kuba Tech
+      </a>
+      <a href="login.html" class="au-back"><i class="fas fa-arrow-left" aria-hidden="true"></i> Voltar ao login</a>
+    </header>
+
+    <main class="au-main" id="main-content">
+      <div class="au-card">
+        <h1 class="au-title">Cadastrar nova senha</h1>
+        <p class="au-sub" id="au-sub">Validando o seu link de recuperação...</p>
+
+        <form id="form-senha" novalidate hidden>
+          <div class="au-field">
+            <label for="senha">Nova senha</label>
+            <input type="password" id="senha" name="password" placeholder="Mínimo 8 caracteres, com letras e números"
+                   autocomplete="new-password" required />
+          </div>
+
+          <div class="au-field">
+            <label for="confirma">Confirmar nova senha</label>
+            <input type="password" id="confirma" name="confirm" placeholder="Repita a nova senha"
+                   autocomplete="new-password" required />
+          </div>
+
+          <button type="submit" class="au-btn" id="btn-salvar">
+            <i class="fas fa-lock" aria-hidden="true"></i> Salvar nova senha
+          </button>
+        </form>
+
+        <p class="au-msg" id="mensagem" role="status" aria-live="polite"></p>
+
+        <p class="au-foot">
+          Link expirado? <a href="esqueci-senha.html">Solicitar novamente</a>
+        </p>
+      </div>
+    </main>
+
+    <script src="../js/config.js"></script>
+    <script src="../js/shared.js"></script>
+    <script src="../js/redefinir-senha.js"></script>
+  </body>
+</html>

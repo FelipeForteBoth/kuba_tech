@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Primeiro acesso — Kuba Tech</title>
+    <meta name="description" content="Troque a senha temporária do primeiro acesso e comece a usar o painel Kuba Tech." />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../css/auth.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Ir para o conteúdo</a>
+
+    <header class="au-nav">
+      <span class="au-brand">
+        <span class="au-brand-icon" aria-hidden="true"><i class="fas fa-tools"></i></span>
+        Kuba Tech
+      </span>
+      <button type="button" class="au-back" id="btn-sair">
+        <i class="fas fa-right-from-bracket" aria-hidden="true"></i> Sair
+      </button>
+    </header>
+
+    <main class="au-main" id="main-content">
+      <div class="au-card">
+        <h1 class="au-title">Troque a sua senha</h1>
+        <p class="au-sub" id="au-sub">
+          Este é o seu primeiro acesso. Por segurança, cadastre uma senha pessoal
+          antes de usar o sistema.
+        </p>
+
+        <form id="form-troca" novalidate>
+          <div class="au-field">
+            <label for="atual">Senha atual (temporária)</label>
+            <input type="password" id="atual" name="current" placeholder="Senha recebida por e-mail"
+                   autocomplete="current-password" required />
+          </div>
+
+          <div class="au-field">
+            <label for="nova">Nova senha</label>
+            <input type="password" id="nova" name="password" placeholder="Mínimo 8 caracteres, com letras e números"
+                   autocomplete="new-password" required />
+          </div>
+
+          <div class="au-field">
+            <label for="confirma">Confirmar nova senha</label>
+            <input type="password" id="confirma" name="confirm" placeholder="Repita a nova senha"
+                   autocomplete="new-password" required />
+          </div>
+
+          <button type="submit" class="au-btn" id="btn-salvar">
+            <i class="fas fa-lock" aria-hidden="true"></i> Salvar e entrar
+          </button>
+        </form>
+
+        <p class="au-msg" id="mensagem" role="status" aria-live="polite"></p>
+      </div>
+    </main>
+
+    <script src="../js/config.js"></script>
+    <script src="../js/shared.js"></script>
+    <script src="../js/trocar-senha.js"></script>
+  </body>
+</html>

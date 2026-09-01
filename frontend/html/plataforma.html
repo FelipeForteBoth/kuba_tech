@@ -56,22 +56,23 @@
     <div class="page-header"><div><h2 class="page-title" style="font-size:18px;">Planos disponíveis</h2></div></div>
     <div class="stat-grid" id="planos"></div>
 
-    <h2 class="section-title" id="tit-solic">Solicitações de pagamento</h2>
+    <h2 class="section-title" id="tit-solic">Solicitações de alteração de plano</h2>
     <div class="toolbar">
       <div class="f" style="max-width:280px;">
         <label class="sr-only" for="filtro-solic">Filtrar por situação</label>
         <select id="filtro-solic">
           <option value="">Todas as situações</option>
-          <option value="sent">Solicitação enviada</option>
+          <option value="pending">Aguardando análise</option>
           <option value="in_service">Em atendimento</option>
-          <option value="info_sent">Informações enviadas</option>
-          <option value="awaiting_confirmation">Aguardando confirmação</option>
-          <option value="confirmed">Pagamento confirmado</option>
-          <option value="canceled">Cancelada</option>
+          <option value="done">Concluída</option>
+          <option value="rejected">Recusada</option>
         </select>
       </div>
     </div>
     <div class="pay-cards" id="solicitacoes"></div>
+
+    <h2 class="section-title" id="tit-senhas">Recuperações de senha (Administradores de Empresa)</h2>
+    <div class="pay-cards" id="recuperacoes"></div>
 
     <div class="toolbar">
       <div class="search-wrap">

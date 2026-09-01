@@ -44,6 +44,14 @@ async function fazerLogin() {
     }
 
     setSession(dados.token, dados.usuario);
+
+    // Primeiro acesso com senha temporária: troca obrigatória.
+    if (dados.usuario.trocarSenha) {
+      setMensagem('Primeiro acesso: cadastre uma nova senha.', 'ok');
+      window.location.href = 'trocar-senha.html';
+      return undefined;
+    }
+
     setMensagem('Login realizado! Redirecionando...', 'ok');
     window.location.href = homePageFor(dados.usuario.perfil);
   } catch (err) {
@@ -59,8 +67,15 @@ document.addEventListener('DOMContentLoaded', () => {
   // Sessão ativa: vai direto para a área do perfil.
   const session = getSession();
   if (session) {
-    window.location.href = homePageFor(session.usuario.perfil);
+    window.location.href = session.usuario.trocarSenha
+      ? 'trocar-senha.html'
+      : homePageFor(session.usuario.perfil);
     return;
+  }
+
+  // Aviso de sessão encerrada por inatividade (10 minutos).
+  if (new URLSearchParams(window.location.search).get('motivo') === 'inatividade') {
+    setMensagem('Sua sessão foi encerrada por inatividade. Entre novamente.', 'err');
   }
 
   document.getElementById('form-login').addEventListener('submit', (e) => {

@@ -25,23 +25,22 @@ function diasParaCancelar(suspendedAt) {
   return Math.ceil((limite - new Date()) / 86400000);
 }
 
+// Andamento das solicitações de alteração de plano.
 const REQ_STATUS = {
-  sent: ['Solicitação enviada', 'badge-todo'],
+  pending: ['Aguardando análise', 'badge-todo'],
   in_service: ['Em atendimento', 'badge-prog'],
-  info_sent: ['Informações enviadas', 'badge-prog'],
-  awaiting_confirmation: ['Aguardando confirmação', 'badge-prog'],
-  confirmed: ['Pagamento confirmado', 'badge-done'],
-  canceled: ['Cancelada', 'badge-del'],
+  done: ['Concluída', 'badge-done'],
+  rejected: ['Recusada', 'badge-del'],
 };
 
-// ── Solicitações manuais de pagamento (Pix / boleto) ──
+// ── Solicitações de alteração de plano ──
 async function loadSolicitacoes() {
   const box = document.getElementById('solicitacoes');
   if (!box) return;
   const filtro = document.getElementById('filtro-solic').value;
   box.innerHTML = stateMsg('loading', 'Carregando solicitações...');
   try {
-    const res = await authFetch(`${API_URL}/platform/payment-requests?status=${filtro}&t=${Date.now()}`);
+    const res = await authFetch(`${API_URL}/platform/plan-requests?status=${filtro}&t=${Date.now()}`);
     if (!res.ok) throw new Error('requests');
     solicitacoes = await res.json();
     renderSolicitacoes();
@@ -54,7 +53,7 @@ async function loadSolicitacoes() {
 function renderSolicitacoes() {
   const box = document.getElementById('solicitacoes');
   if (!solicitacoes.length) {
-    box.innerHTML = stateMsg('empty', 'Nenhuma solicitação de pagamento no momento.');
+    box.innerHTML = stateMsg('empty', 'Nenhuma solicitação de plano no momento.');
     return;
   }
   box.innerHTML = solicitacoes.map((s) => {
@@ -64,9 +63,9 @@ function renderSolicitacoes() {
         <strong>${esc(s.company_name || '—')}</strong>
         <span class="badge ${cls}">${esc(label)}</span>
       </div>
-      <p><span>Plano</span> ${esc(s.plan_name || '—')} · ${money(s.amount)}</p>
-      <p><span>Forma</span> ${esc(s.method_label || s.method)}</p>
+      <p><span>Plano</span> ${esc(s.current_plan_name || '—')} → ${esc(s.desired_plan_name || 'a definir')}</p>
       <p><span>Solicitante</span> ${esc(s.requester_name || '—')} · ${fmtDateTime(s.created_at)}</p>
+      ${s.message ? `<p><span>Mensagem</span> ${esc(s.message)}</p>` : ''}
       <div class="fg">
         <label for="st-${s.id}">Atualizar situação</label>
         <select class="fc" id="st-${s.id}">
@@ -74,8 +73,8 @@ function renderSolicitacoes() {
         </select>
       </div>
       <div class="fg">
-        <label for="nt-${s.id}">Observações enviadas à empresa</label>
-        <textarea class="fc" id="nt-${s.id}" rows="2" placeholder="Chave Pix, código do boleto ou orientações...">${esc(s.notes || '')}</textarea>
+        <label for="nt-${s.id}">Resposta enviada à empresa</label>
+        <textarea class="fc" id="nt-${s.id}" rows="2" placeholder="Condições combinadas, prazo de liberação...">${esc(s.answer || '')}</textarea>
       </div>
       <button class="btn btn-primary btn-sm" onclick="salvarSolicitacao('${s.id}', this)">
         <i class="fas fa-paper-plane"></i> Atualizar e notificar
@@ -86,13 +85,13 @@ function renderSolicitacoes() {
 
 async function salvarSolicitacao(id, btn) {
   const status = document.getElementById(`st-${id}`).value;
-  const notes = document.getElementById(`nt-${id}`).value.trim();
+  const answer = document.getElementById(`nt-${id}`).value.trim();
   await runAction(btn, async () => {
     try {
-      const res = await authFetch(`${API_URL}/platform/payment-requests/${id}`, {
+      const res = await authFetch(`${API_URL}/platform/plan-requests/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status, notes }),
+        body: JSON.stringify({ status, answer }),
       });
       const data = await res.json();
       if (!res.ok) return toast(data.error || 'Não foi possível atualizar a solicitação.', 'err');
@@ -104,6 +103,76 @@ async function salvarSolicitacao(id, btn) {
     }
     return undefined;
   }, 'Salvando...');
+}
+
+// ── Recuperações de senha de Administradores de Empresa ──
+let recuperacoes = [];
+
+async function loadRecuperacoes() {
+  const box = document.getElementById('recuperacoes');
+  if (!box) return;
+  box.innerHTML = stateMsg('loading', 'Carregando solicitações de senha...');
+  try {
+    const res = await authFetch(`${API_URL}/auth/password-requests?t=${Date.now()}`);
+    if (!res.ok) throw new Error('password-requests');
+    recuperacoes = await res.json();
+    renderRecuperacoes();
+  } catch (e) {
+    console.error(e);
+    box.innerHTML = stateMsg('error', 'Não foi possível carregar as solicitações de senha.');
+  }
+}
+
+function renderRecuperacoes() {
+  const box = document.getElementById('recuperacoes');
+  if (!recuperacoes.length) {
+    box.innerHTML = stateMsg('empty', 'Nenhuma solicitação de recuperação de senha.');
+    return;
+  }
+  box.innerHTML = recuperacoes.map((r) => `
+    <article class="pay-card">
+      <div class="pay-card-hd">
+        <strong>${esc(r.user_name)}</strong>
+        <span class="badge ${r.status === 'pending' ? 'badge-todo' : 'badge-done'}">${esc(r.status_label)}</span>
+      </div>
+      <p><span>Empresa</span> ${esc(r.company_name || '—')}</p>
+      <p><span>E-mail</span> ${esc(r.user_email)}</p>
+      <p><span>Solicitada em</span> ${fmtDateTime(r.created_at)}</p>
+      ${r.reason ? `<p><span>Motivo</span> ${esc(r.reason)}</p>` : ''}
+      ${r.status === 'pending' ? `
+        <div class="pay-card-actions">
+          <button class="btn btn-primary btn-sm" onclick="decidirSenha('${r.id}','approve',this)">
+            <i class="fas fa-check"></i> Aprovar e enviar link
+          </button>
+          <button class="btn btn-del btn-sm" onclick="decidirSenha('${r.id}','reject',this)">
+            <i class="fas fa-xmark"></i> Recusar
+          </button>
+        </div>` : ''}
+    </article>`).join('');
+}
+
+async function decidirSenha(id, acao, btn) {
+  if (acao === 'reject' && !confirm('Recusar esta solicitação de recuperação de senha?')) return;
+  const reason = acao === 'reject' ? (prompt('Motivo da recusa (opcional):') || '') : '';
+
+  await runAction(btn, async () => {
+    try {
+      const res = await authFetch(`${API_URL}/auth/password-requests/${id}/${acao}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
+      });
+      const data = await res.json();
+      if (!res.ok) return toast(data.error || 'Não foi possível concluir a decisão.', 'err');
+      toast(data.message, 'ok');
+      if (data.link) prompt('Repasse este link ao usuário:', data.link);
+      await loadRecuperacoes();
+    } catch (e) {
+      console.error(e);
+      toast('Falha de comunicação com o servidor.', 'err');
+    }
+    return undefined;
+  }, 'Processando...');
 }
 
 async function loadTudo() {
@@ -216,7 +285,6 @@ function viewEmpresa(id) {
   if (t.status === 'canceled') {
     acoes.push(`<button class="btn btn-del btn-sm" onclick="deleteEmpresa('${t.id}')"><i class="fas fa-trash"></i> Excluir</button>`);
   }
-  acoes.push(`<button class="btn btn-ghost btn-sm" onclick="enviarCobranca('${t.id}')"><i class="fas fa-envelope"></i> Enviar cobrança</button>`);
   acoes.push('<button class="btn btn-ghost btn-sm" onclick="closeDrawer()">Fechar</button>');
   acoes.push(`<button class="btn btn-primary btn-sm" onclick="saveEmpresa('${t.id}')"><i class="fas fa-save"></i> Salvar</button>`);
   document.getElementById('drawer-ft').innerHTML = acoes.join('');
@@ -249,8 +317,8 @@ function newEmpresa() {
     <div class="d-section"><i class="fas fa-user-shield"></i> Administrador da Empresa</div>
     <div class="fg"><label>Nome completo *</label><input class="fc" id="n-adm-nome" placeholder="Maria da Silva"></div>
     <div class="fg"><label>E-mail de acesso *</label><input class="fc" id="n-adm-email" type="email" placeholder="admin@empresa.com.br"></div>
-    <div class="fg"><label>Senha * (mín. 8 caracteres, com letras e números)</label>
-      <input class="fc" id="n-senha" type="password" placeholder="••••••••"></div>`;
+    <div class="fg"><span class="stat-lbl">O administrador recebe por e-mail a senha temporária
+      <strong>123456</strong> e é obrigado a cadastrar uma senha pessoal no primeiro acesso.</span></div>`;
   bindCNPJEmpresa();
   bindCEP('n-cep', {
     logradouro: 'n-rua', bairro: 'n-bairro', cidade: 'n-cidade', estado: 'n-uf',
@@ -310,7 +378,6 @@ async function createEmpresa() {
     planId: document.getElementById('n-plano').value,
     adminName: document.getElementById('n-adm-nome').value.trim(),
     adminEmail: document.getElementById('n-adm-email').value.trim(),
-    password: document.getElementById('n-senha').value,
     zipCode: document.getElementById('n-cep').value.trim(),
     address: document.getElementById('n-rua').value.trim(),
     neighborhood: document.getElementById('n-bairro').value.trim(),
@@ -324,7 +391,6 @@ async function createEmpresa() {
   if (!body.planId) return toast('Selecione um plano.', 'err');
   if (body.adminName.split(' ').filter(Boolean).length < 2) return toast('Informe o nome completo do administrador.', 'err');
   if (!body.adminEmail.includes('@')) return toast('E-mail do administrador inválido.', 'err');
-  if (body.password.length < 8) return toast('A senha deve ter ao menos 8 caracteres.', 'err');
 
   try {
     const res = await authFetch(`${API_URL}/platform/tenants`, {
@@ -334,25 +400,11 @@ async function createEmpresa() {
     });
     const dados = await res.json();
     if (!res.ok) return toast(dados.error || 'Erro ao cadastrar a empresa.', 'err');
-    toast('Empresa cadastrada com sucesso.');
+    toast(dados.message || 'Empresa cadastrada com sucesso.');
     closeDrawer();
     loadTudo();
   } catch {
     toast('Erro de conexão.', 'err');
-  }
-}
-
-/** Envia manualmente, por e-mail, a cobrança da mensalidade em atraso. */
-async function enviarCobranca(id) {
-  if (!confirm('Enviar a cobrança da mensalidade por e-mail para esta empresa?')) return;
-  try {
-    const res = await authFetch(`${API_URL}/platform/tenants/${id}/charge`, { method: 'POST' });
-    const data = await res.json();
-    if (!res.ok) return toast(data.message || 'Não foi possível enviar a cobrança.', 'err');
-    toast(data.message, 'ok');
-  } catch (e) {
-    console.error(e);
-    toast('Falha de comunicação com o servidor.', 'err');
   }
 }
 
@@ -410,6 +462,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!getSession()) return;
   loadTudo();
   loadSolicitacoes();
+  loadRecuperacoes();
   const filtro = document.getElementById('filtro-solic');
   if (filtro) filtro.addEventListener('change', loadSolicitacoes);
   const btnNew = document.getElementById('btn-new');

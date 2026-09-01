@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Plano e Assinatura — Kuba Tech</title>
+  <title>Meu Plano — Kuba Tech</title>
+  <meta name="description" content="Consulte o plano contratado pela sua empresa, os módulos liberados e solicite a alteração do plano à equipe Kuba Tech.">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link rel="stylesheet" href="../css/style.css">
@@ -30,22 +31,27 @@
     <a href="usuarios.html"     class="nav-item" data-page="usuarios"><i class="fas fa-user-shield" aria-hidden="true"></i> Usuários</a>
     <a href="relatorios.html"   class="nav-item" data-page="relatorios"><i class="fas fa-chart-column" aria-hidden="true"></i> Relatórios</a>
     <a href="agenda.html"       class="nav-item" data-page="agenda"><i class="fas fa-calendar-days" aria-hidden="true"></i> Agenda Técnica</a>
-    <a href="assinatura.html"   class="nav-item" data-page="assinatura"><i class="fas fa-credit-card" aria-hidden="true"></i> Plano e Assinatura</a>
+    <a href="assinatura.html"   class="nav-item" data-page="assinatura"><i class="fas fa-layer-group" aria-hidden="true"></i> Meu Plano</a>
   </aside>
 
   <main id="main-content">
 
     <div class="page-header">
       <div>
-        <h1 class="page-title">Plano e Assinatura</h1>
+        <h1 class="page-title">Meu Plano</h1>
         <p class="page-sub" id="sub-count">Carregando...</p>
       </div>
-      <button class="btn btn-primary" id="btn-pagar" data-requires="companySettings">
-        <i class="fas fa-rotate" aria-hidden="true"></i> Renovar assinatura
+      <button class="btn btn-primary" id="btn-solicitar" data-requires="companySettings">
+        <i class="fas fa-headset" aria-hidden="true"></i> Solicitar alteração de plano
       </button>
     </div>
 
-    <section class="cards" id="resumo" aria-label="Resumo da assinatura"></section>
+    <section class="cards" id="resumo" aria-label="Resumo do plano contratado"></section>
+
+    <section aria-labelledby="tit-modulos">
+      <h2 class="section-title" id="tit-modulos">Módulos liberados para a sua empresa</h2>
+      <div class="plan-grid" id="modulos"></div>
+    </section>
 
     <section aria-labelledby="tit-planos">
       <h2 class="section-title" id="tit-planos">Planos disponíveis</h2>
@@ -53,24 +59,8 @@
     </section>
 
     <section aria-labelledby="tit-solic">
-      <h2 class="section-title" id="tit-solic">Solicitações de pagamento</h2>
+      <h2 class="section-title" id="tit-solic">Minhas solicitações</h2>
       <div class="pay-cards" id="solicitacoes"></div>
-    </section>
-
-    <section aria-labelledby="tit-hist">
-      <h2 class="section-title" id="tit-hist">Histórico de pagamentos</h2>
-      <div class="tcard">
-        <div class="tscroll">
-          <table>
-            <caption class="sr-only">Pagamentos realizados pela empresa</caption>
-            <thead>
-              <tr><th scope="col">Registro</th><th scope="col">Plano</th><th scope="col">Valor</th><th scope="col">Vencimento</th><th scope="col">Situação</th><th scope="col">Forma</th></tr>
-            </thead>
-            <tbody id="tbody"></tbody>
-          </table>
-        </div>
-      </div>
-      <div class="pay-cards" id="cards"></div>
     </section>
 
   </main>

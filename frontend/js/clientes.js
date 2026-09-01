@@ -141,8 +141,6 @@ function formHTML(c) {
 
 
     <div class="grid-2" id="fg-receita">
-      <div class="fg"><label for="f-situacao">Situação cadastral</label>
-        <input type="text" class="fc" id="f-situacao" value="${esc(c ? (c.registration_status || '') : '')}" placeholder="Consultada automaticamente"></div>
       <div class="fg" id="fg-abertura" style="${pj ? '' : 'display:none;'}">
         <label for="f-abertura">Data de abertura</label>
         <input type="date" class="fc" id="f-abertura" value="${esc(c && c.opening_date ? String(c.opening_date).slice(0, 10) : '')}"></div>
@@ -237,7 +235,6 @@ async function consultarDocumento() {
       const d = r.data || {};
       const nome = document.getElementById('f-nome');
       if (d.nome) nome.value = d.nome;
-      if (d.situacao) document.getElementById('f-situacao').value = d.situacao;
       if (d.cidade && !document.getElementById('f-cidade').value) document.getElementById('f-cidade').value = d.cidade;
       if (d.estado && !document.getElementById('f-estado').value) document.getElementById('f-estado').value = d.estado;
       fieldHint(campo, d.nome ? 'CPF localizado. Confira os dados preenchidos.' : 'CPF válido. Complete os dados manualmente.', 'ok');
@@ -261,7 +258,6 @@ async function consultarDocumento() {
     document.getElementById('f-cidade').value = d.cidade || '';
     document.getElementById('f-estado').value = d.estado || '';
     document.getElementById('f-fantasia').value = d.nomeFantasia || '';
-    document.getElementById('f-situacao').value = d.situacao || '';
     document.getElementById('f-cnae').value = d.cnae || '';
     if (d.dataAbertura) document.getElementById('f-abertura').value = String(d.dataAbertura).slice(0, 10);
     if (d.email && !document.getElementById('f-email').value) document.getElementById('f-email').value = d.email;
@@ -320,7 +316,6 @@ async function saveCliente() {
     city: document.getElementById('f-cidade').value.trim(),
     state: document.getElementById('f-estado').value.trim().toUpperCase(),
     tradeName: (document.getElementById('f-fantasia') || {}).value || null,
-    registrationStatus: (document.getElementById('f-situacao') || {}).value || null,
     cnae: (document.getElementById('f-cnae') || {}).value || null,
     openingDate: (document.getElementById('f-abertura') || {}).value || null,
   };
