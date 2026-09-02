@@ -53,7 +53,7 @@ INSERT INTO users (tenant_id, name, email, password_hash, role)
 VALUES (
   NULL,
   'Administrador da Plataforma',
-  'admin@kubatech.com.br',
+  'kubatech720@gmail.com',
   '$2b$10$hhrHzCkpG7FWHreo/t8W8eSM.AvK3cyP/ZhsXwPbYzdEkH6eV6Fra',
   'platform_admin'
 )
