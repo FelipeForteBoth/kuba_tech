@@ -37,7 +37,7 @@ const create = (tenantId, data) =>
     `INSERT INTO customers
        (tenant_id, cpf, document_type, document_number, name, company_name, phone, email,
         zip_code, address, neighborhood, city, state,
-        trade_name, birth_date, cnae, opening_date)
+        trade_name, cnae, opening_date)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
     [
       tenantId,
@@ -54,7 +54,6 @@ const create = (tenantId, data) =>
       data.city,
       data.state,
       data.tradeName || null,
-      data.birthDate || null,
       data.cnae || null,
       data.openingDate || null,
     ],
@@ -65,12 +64,14 @@ const update = (tenantId, id, data) =>
     `UPDATE customers
         SET name = $3, company_name = $4, phone = $5, email = $6,
             zip_code = $7, address = $8, neighborhood = $9, city = $10, state = $11,
-            trade_name = COALESCE($12, trade_name), birth_date = COALESCE($13, birth_date)
+            trade_name = COALESCE($12, trade_name),
+            cnae = COALESCE($13, cnae),
+            opening_date = COALESCE($14, opening_date)
       WHERE tenant_id = $1 AND id = $2 AND ${ACTIVE} RETURNING *`,
     [
       tenantId, id, data.name, data.companyName, data.phone, data.email,
       data.zipCode, data.address, data.neighborhood, data.city, data.state,
-      data.tradeName || null, data.birthDate || null,
+      data.tradeName || null, data.cnae || null, data.openingDate || null,
     ],
   );
 
