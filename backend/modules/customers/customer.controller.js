@@ -3,22 +3,10 @@
 const model = require('./customer.model');
 const { AppError } = require('../../shared/http');
 const {
-  isValidPhone,
-  isValidEmail,
-  isValidName,
-  isValidUUID,
-  formatCPF,
-  formatCNPJ,
-  normalizePhone,
-  formatPhone,
+  isValidPhone, isValidEmail, isValidName, isValidUUID,
+  formatCPF, formatCNPJ, normalizePhone, formatPhone,
 } = require('../../shared/validators');
-const {
-  onlyDigits,
-  isValidCPFDigits,
-  isValidCNPJDigits,
-  cpfExistenceCheck,
-  lookupCNPJ,
-} = require('../../shared/documents');
+const { onlyDigits, isValidCPFDigits, isValidCNPJDigits, cpfExistenceCheck, lookupCNPJ } = require('../../shared/documents');
 
 async function index(req, res) {
   const search = String(req.query.search || '').trim();
@@ -39,11 +27,9 @@ function optionalText(value, max = 255) {
   return v ? v.slice(0, max) : null;
 }
 
-/** Valida documento (camada 1 local + camada 2 externa). */
 async function validateDocument(body) {
   const documentType = String(body.documentType || 'CPF').trim().toUpperCase();
   if (!['CPF', 'CNPJ'].includes(documentType)) throw new AppError('Selecione o tipo de documento (CPF ou CNPJ).');
-
   const digits = onlyDigits(body.documentNumber || body.cpf || body.cnpj);
 
   if (documentType === 'CPF') {
@@ -56,13 +42,10 @@ async function validateDocument(body) {
 
   if (digits.length !== 14) throw new AppError('CNPJ inválido. Informe os 14 números.');
   if (!isValidCNPJDigits(digits)) throw new AppError('CNPJ inválido: os dígitos verificadores não conferem.');
-
   const consulta = await lookupCNPJ(digits);
   if (!consulta.valid) throw new AppError(consulta.reason || 'CNPJ inexistente.');
-
   const companyName = optionalText(body.companyName) || (consulta.data && consulta.data.razaoSocial) || null;
   if (!companyName) throw new AppError('Informe a razão social da empresa.');
-
   return { documentType, documentNumber: formatCNPJ(digits), companyName, receita: consulta.data || null };
 }
 
@@ -70,7 +53,6 @@ function validateContact(body, documentType) {
   const name = String(body.name || '').trim();
   const phoneInput = String(body.phone || '').trim();
   const email = String(body.email || '').trim();
-
   if (documentType === 'CPF') {
     if (!isValidName(name)) throw new AppError('Informe o nome completo (nome e sobrenome), apenas letras.');
   } else if (name.length < 3) {
@@ -78,48 +60,46 @@ function validateContact(body, documentType) {
   }
   if (!isValidPhone(phoneInput)) throw new AppError('Telefone inválido. Use o formato (00) 00000-0000.');
   if (!isValidEmail(email)) throw new AppError('E-mail inválido.');
-
   return { name, email, phone: formatPhone(normalizePhone(phoneInput)) };
 }
 
-/** Dados públicos complementares (Receita Federal / consulta de CPF). */
-function publicFields(body, receita) {
-  const data = (value) => (/^\d{4}-\d{2}-\d{2}$/.test(String(value || '').trim()) ? String(value).trim() : null);
+// Dados cadastrais mantidos apenas para compatibilidade histórica.
+// Data de abertura e CNAE não fazem mais parte do cadastro de CNPJ.
+function publicFields(body) {
   return {
-    tradeName: optionalText(body.tradeName, 150) || (receita && receita.nomeFantasia) || null,
-    birthDate: data(body.birthDate),
-    cnae: optionalText(body.cnae, 160) || (receita && receita.cnae) || null,
-    openingDate: data(body.openingDate) || data(receita && receita.dataAbertura),
+    tradeName: optionalText(body.tradeName, 150),
+    cnae: null,
+    openingDate: null,
   };
 }
 
-function addressFields(body, receita) {
+function addressFields(body) {
+  const address = optionalText(body.address, 255);
+  const number = optionalText(body.addressNumber, 20);
+  const complement = optionalText(body.addressComplement, 255);
+  if (address && !number) throw new AppError('Informe o número do endereço. Se não existir, informe SN.');
   return {
-    zipCode: optionalText(body.zipCode, 10) || (receita && receita.cep ? receita.cep : null),
-    address: optionalText(body.address, 255) || (receita && receita.logradouro) || null,
-    neighborhood: optionalText(body.neighborhood, 100) || (receita && receita.bairro) || null,
-    city: optionalText(body.city, 100) || (receita && receita.cidade) || null,
-    state: optionalText(body.state, 50) || (receita && receita.estado) || null,
+    zipCode: optionalText(body.zipCode, 10),
+    address,
+    addressNumber: number,
+    addressComplement: complement,
+    neighborhood: optionalText(body.neighborhood, 100),
+    city: optionalText(body.city, 100),
+    state: optionalText(body.state, 50),
   };
 }
 
 async function store(req, res) {
   const doc = await validateDocument(req.body);
   const contact = validateContact(req.body, doc.documentType);
-  const address = addressFields(req.body, doc.receita);
-  const publicos = publicFields(req.body, doc.receita);
-
+  const address = addressFields(req.body);
+  const publicos = publicFields(req.body);
   if (await model.findByDocument(req.tenantId, doc.documentNumber)) {
     throw new AppError(`Já existe um cliente com este ${doc.documentType} nesta empresa.`, 409);
   }
-
   const created = await model.create(req.tenantId, {
-    documentType: doc.documentType,
-    documentNumber: doc.documentNumber,
-    companyName: doc.companyName,
-    ...contact,
-    ...address,
-    ...publicos,
+    documentType: doc.documentType, documentNumber: doc.documentNumber, companyName: doc.companyName,
+    ...contact, ...address, ...publicos,
   });
   res.status(201).json(created);
 }
@@ -128,17 +108,13 @@ async function update(req, res) {
   if (!isValidUUID(req.params.id)) throw new AppError('Identificador inválido.');
   const current = await model.findById(req.tenantId, req.params.id);
   if (!current) throw new AppError('Cliente não encontrado.', 404);
-
   const contact = validateContact(req.body, current.document_type || 'CPF');
-  const address = addressFields(req.body, null);
+  const address = addressFields(req.body);
   const companyName = current.document_type === 'CNPJ'
     ? (optionalText(req.body.companyName) || current.company_name)
     : null;
-
-  const publicos = publicFields(req.body, null);
-  const customer = await model.update(req.tenantId, req.params.id, {
-    ...contact, ...address, ...publicos, companyName,
-  });
+  const publicos = publicFields(req.body);
+  const customer = await model.update(req.tenantId, req.params.id, { ...contact, ...address, ...publicos, companyName });
   res.json(customer);
 }
 
