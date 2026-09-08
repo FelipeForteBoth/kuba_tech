@@ -77,5 +77,3 @@ kuba_tech/
 | `APP_URL` | URL do front (links de pagamento nos e-mails). |
 
 Aplicar as migrações após o deploy: `cd backend && npm run migrate`.
-
-<!-- rollback-vercel-trigger -->
