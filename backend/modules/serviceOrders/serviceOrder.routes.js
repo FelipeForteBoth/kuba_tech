@@ -23,7 +23,7 @@ function requireTechnician(req, _res, next) {
   return next();
 }
 
-async function requireCurrentOrHistoricalModule(code) {
+function requireCurrentOrHistoricalModule(code) {
   return async (req, res, next) => {
     try {
       if (!req.tenantId) return res.status(403).json({ error: 'Operação exclusiva de empresas contratantes.' });
