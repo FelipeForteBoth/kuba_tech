@@ -4,7 +4,7 @@ const controller = require('./serviceOrder.controller');
 const { authenticate } = require('../../middleware/auth');
 const { authorize, tenantScope } = require('../../middleware/rbac');
 const { requireModule } = require('../../middleware/modules');
-const { asyncHandler } = require('../../shared/http');
+const { asyncHandler, AppError } = require('../../shared/http');
 const { ROLES, MODULES } = require('../../config/roles');
 
 const router = express.Router();
@@ -15,8 +15,15 @@ router.get('/:id', asyncHandler(controller.show));
 router.get('/:id/history', asyncHandler(controller.history));
 const canManage = authorize(ROLES.COMPANY_ADMIN, ROLES.ATTENDANT);
 const canOperate = authorize(ROLES.COMPANY_ADMIN, ROLES.ATTENDANT, ROLES.TECHNICIAN);
-router.post('/', canManage, asyncHandler(controller.store));
-router.put('/:id', canManage, asyncHandler(controller.update));
+
+function requireTechnician(req, _res, next) {
+  const technicianId = String(req.body.technicianId || '').trim();
+  if (!technicianId) return next(new AppError('Um usuário "Técnico" deve ser cadastrado para prosseguir'));
+  return next();
+}
+
+router.post('/', canManage, requireTechnician, asyncHandler(controller.store));
+router.put('/:id', canManage, requireTechnician, asyncHandler(controller.update));
 router.patch('/:id/schedule', canOperate, asyncHandler(controller.schedule));
 router.patch('/:id/status', canOperate, asyncHandler(controller.updateStatus));
 // A criação/alteração continua limitada ao módulo contratado.
