@@ -3,9 +3,16 @@
 (() => {
   const BLOQUEADOS_INTERNO = new Set(['Agendado', 'Aberto', 'Em deslocamento', 'No local', 'Aguardando cliente']);
 
-  function ehInterna() {
+  function tipoAtual() {
     const tipo = document.querySelector('#f-tipo, [name="service_type"], [name="serviceType"]');
-    return tipo && String(tipo.value || '').toLowerCase() === 'interno';
+    if (tipo) return String(tipo.value || '').toLowerCase();
+    const modo = document.getElementById('drawer-mode')?.textContent || '';
+    if (/atendimento interno/i.test(modo)) return 'interno';
+    return '';
+  }
+
+  function ehInterna() {
+    return tipoAtual() === 'interno';
   }
 
   function limparOpcoesInternas() {
@@ -23,13 +30,13 @@
 
   function limparAcoesInternas() {
     if (!ehInterna()) return;
-    const textoDrawer = document.getElementById('drawer-mode')?.textContent || '';
-    const interna = /interno/i.test(textoDrawer);
-    if (!interna) return;
-
     const area = document.getElementById('drawer-body') || document.getElementById('drawer');
     if (!area) return;
     area.querySelectorAll('button').forEach((button) => {
+      const texto = String(button.textContent || '').trim();
+      if (BLOQUEADOS_INTERNO.has(texto)) button.remove();
+    });
+    document.querySelectorAll('#drawer-ft button').forEach((button) => {
       const texto = String(button.textContent || '').trim();
       if (BLOQUEADOS_INTERNO.has(texto)) button.remove();
     });
