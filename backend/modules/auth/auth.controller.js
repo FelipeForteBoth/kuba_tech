@@ -19,8 +19,6 @@ const {
   formatPhone,
 } = require('../../shared/validators');
 
-// Sessão curta: 10 minutos sem atividade encerram o acesso.
-// O front-end renova o token enquanto o usuário estiver ativo.
 const TOKEN_EXPIRATION = process.env.JWT_EXPIRES_IN || '10m';
 const INACTIVITY_MINUTES = 10;
 const SALT_ROUNDS = 10;
@@ -49,7 +47,6 @@ function publicUser(user, modulos = []) {
   };
 }
 
-// POST /api/auth/register — auto-cadastro da empresa contratante
 async function registerCompany(req, res) {
   const companyName = String(req.body.companyName || '').trim();
   const documentInput = String(req.body.document || '').trim();
@@ -95,7 +92,6 @@ async function registerCompany(req, res) {
     planId: plan.id,
   });
 
-
   const token = signToken(user);
   res.status(201).json({
     token,
@@ -106,20 +102,15 @@ async function registerCompany(req, res) {
   });
 }
 
-// POST /api/auth/login
 async function login(req, res) {
   const email = String(req.body.email || '').trim().toLowerCase();
   const password = String(req.body.password || '');
-
   if (!email || !password) throw new AppError('Informe e-mail e senha.');
 
   await model.expireSuspendedTenants();
-
   const user = await model.findUserByEmail(email);
-  // Mensagem genérica: não revela se o e-mail existe.
   const invalid = new AppError('E-mail ou senha inválidos.', 401);
   if (!user) throw invalid;
-
   const matches = await bcrypt.compare(password, user.password_hash);
   if (!matches) throw invalid;
   if (!user.active) throw new AppError('Usuário desativado. Procure o administrador da sua empresa.', 403);
@@ -131,7 +122,6 @@ async function login(req, res) {
   res.json({ token: signToken(user), usuario: publicUser(user, await tenantModuleCodes(user.tenant_id)) });
 }
 
-// GET /api/auth/me
 async function me(req, res) {
   const user = await model.findUserById(req.user.id);
   if (!user) throw new AppError('Usuário não encontrado.', 404);
@@ -139,21 +129,27 @@ async function me(req, res) {
 }
 
 // PUT /api/auth/password
+// No primeiro acesso, o token já comprova a autenticação com a senha temporária.
 async function changePassword(req, res) {
   const currentPassword = String(req.body.currentPassword || '');
   const newPassword = String(req.body.newPassword || '');
 
   if (!isValidPassword(newPassword)) throw new AppError('A nova senha deve ter ao menos 8 caracteres, com letras e números.');
 
-  const record = await model.getPasswordHash(req.user.id);
-  const matches = await bcrypt.compare(currentPassword, record.password_hash);
-  if (!matches) throw new AppError('Senha atual incorreta.', 401);
+  const user = await model.findUserById(req.user.id);
+  if (!user) throw new AppError('Usuário não encontrado.', 404);
+
+  if (!user.must_change_password) {
+    if (!currentPassword) throw new AppError('Informe a senha atual.');
+    const record = await model.getPasswordHash(req.user.id);
+    const matches = await bcrypt.compare(currentPassword, record.password_hash);
+    if (!matches) throw new AppError('Senha atual incorreta.', 401);
+  }
 
   await model.updatePassword(req.user.id, await bcrypt.hash(newPassword, SALT_ROUNDS));
   res.json({ message: 'Senha alterada com sucesso.' });
 }
 
-// POST /api/auth/refresh — renova a sessão enquanto houver atividade.
 async function refresh(req, res) {
   const user = await model.findUserById(req.user.id);
   if (!user) throw new AppError('Usuário não encontrado.', 404);
