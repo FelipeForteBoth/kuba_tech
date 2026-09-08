@@ -18,12 +18,10 @@
   function limparOpcoesInternas() {
     if (!ehInterna()) return;
     document.querySelectorAll('select').forEach((select) => {
-      const id = String(select.id || '').toLowerCase();
-      const name = String(select.name || '').toLowerCase();
-      const pareceStatus = id.includes('status') || name.includes('status') || id.includes('tipo-status');
-      if (!pareceStatus) return;
       [...select.options].forEach((option) => {
-        if (BLOQUEADOS_INTERNO.has(String(option.value || option.textContent || '').trim())) option.remove();
+        const valor = String(option.value || '').trim();
+        const texto = String(option.textContent || '').trim();
+        if (BLOQUEADOS_INTERNO.has(valor) || BLOQUEADOS_INTERNO.has(texto)) option.remove();
       });
     });
   }
