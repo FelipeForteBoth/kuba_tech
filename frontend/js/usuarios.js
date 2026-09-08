@@ -81,8 +81,8 @@ function newUsuario() {
     <div class="d-section"><i class="fas fa-user-shield"></i> Dados de Acesso</div>
     <div class="fg"><label>Nome Completo *</label><input type="text" class="fc" id="f-nome" placeholder="Nome e sobrenome"></div>
     <div class="fg"><label>E-mail *</label><input type="email" class="fc" id="f-email" placeholder="email@empresa.com"></div>
-    <div class="fg"><label>Senha provisória *</label><input type="password" class="fc" id="f-senha" placeholder="Mínimo 8 caracteres, com letras e números"></div>
-    <div class="fg"><label>Perfil de acesso *</label><select class="fc" id="f-perfil">${roleOptions('attendant')}</select></div>`;
+    <div class="fg"><label>Perfil de acesso *</label><select class="fc" id="f-perfil">${roleOptions('attendant')}</select></div>
+    <div class="fg"><span class="stat-lbl">A senha inicial é definida automaticamente como <strong>123456</strong>. O usuário é obrigado a trocá-la no primeiro acesso.</span></div>`;
   document.getElementById('drawer-ft').innerHTML = `
     <button class="btn btn-ghost btn-sm" onclick="closeDrawer()">Cancelar</button>
     <button class="btn btn-primary btn-sm" onclick="saveUsuario()"><i class="fas fa-save"></i> Salvar</button>`;
@@ -124,10 +124,8 @@ async function saveUsuario() {
     body.active = document.getElementById('f-ativo').value === 'true';
   } else {
     const email = document.getElementById('f-email').value.trim();
-    const password = document.getElementById('f-senha').value;
     if (!isValidEmail(email)) return toast('E-mail inválido.', 'err');
-    if (!isValidPassword(password)) return toast('A senha deve ter ao menos 8 caracteres, com letras e números.', 'err');
-    body = { ...body, email, password };
+    body = { ...body, email };
   }
 
   try {
@@ -138,7 +136,7 @@ async function saveUsuario() {
     });
     const dados = await res.json();
     if (!res.ok) return toast(dados.error || 'Erro ao salvar.', 'err');
-    toast('Usuário salvo com sucesso!');
+    toast(dados.message || 'Usuário salvo com sucesso!');
     closeDrawer();
     fetchDados();
   } catch {
