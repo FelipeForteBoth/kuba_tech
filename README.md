@@ -76,4 +76,4 @@ kuba_tech/
 | `CPF_API_URL` / `CPF_API_TOKEN` | Opcional: API de consulta de CPF (`{cpf}` no lugar do número). |
 | `APP_URL` | URL do front (links de pagamento nos e-mails). |
 
-Aplicar as migrações após o deploy: `cd backend && npm run migrate`.
+Banco de dados: aplique manualmente `backend/database/schema.sql` no SQL Editor do Supabase sempre que a estrutura mudar (o arquivo é idempotente). Em bancos novos, rode também `backend/database/seed.sql`.

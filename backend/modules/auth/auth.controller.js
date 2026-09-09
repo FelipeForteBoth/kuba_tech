@@ -139,18 +139,38 @@ async function me(req, res) {
 }
 
 // PUT /api/auth/password
+//
+// Primeiro acesso (must_change_password = TRUE): o usuário já se autenticou
+// com a senha temporária, então a senha antiga NÃO é solicitada novamente —
+// a troca acontece com base na sessão já estabelecida.
+// Troca voluntária: a senha atual continua sendo exigida.
 async function changePassword(req, res) {
   const currentPassword = String(req.body.currentPassword || '');
   const newPassword = String(req.body.newPassword || '');
 
   if (!isValidPassword(newPassword)) throw new AppError('A nova senha deve ter ao menos 8 caracteres, com letras e números.');
 
+  const usuario = await model.findUserById(req.user.id);
+  if (!usuario) throw new AppError('Usuário não encontrado.', 404);
+  const primeiroAcesso = Boolean(usuario.must_change_password);
+
   const record = await model.getPasswordHash(req.user.id);
-  const matches = await bcrypt.compare(currentPassword, record.password_hash);
-  if (!matches) throw new AppError('Senha atual incorreta.', 401);
+
+  if (!primeiroAcesso) {
+    const matches = await bcrypt.compare(currentPassword, record.password_hash);
+    if (!matches) throw new AppError('Senha atual incorreta.', 401);
+  } else if (await bcrypt.compare(newPassword, record.password_hash)) {
+    throw new AppError('A nova senha deve ser diferente da senha temporária.');
+  }
 
   await model.updatePassword(req.user.id, await bcrypt.hash(newPassword, SALT_ROUNDS));
-  res.json({ message: 'Senha alterada com sucesso.' });
+
+  const atualizado = await model.findUserById(req.user.id);
+  res.json({
+    message: 'Senha alterada com sucesso.',
+    token: signToken({ id: atualizado.id, role: atualizado.role, tenant_id: atualizado.tenant_id }),
+    usuario: publicUser(atualizado, await tenantModuleCodes(atualizado.tenant_id)),
+  });
 }
 
 // POST /api/auth/refresh — renova a sessão enquanto houver atividade.

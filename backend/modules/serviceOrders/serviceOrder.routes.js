@@ -31,12 +31,15 @@ router.patch('/:id/schedule', canOperate, asyncHandler(controller.schedule));
 router.patch('/:id/status', canOperate, asyncHandler(controller.updateStatus));
 
 // Evidências fotográficas (módulo contratado).
-router.get('/:id/photos', requireModule(MODULES.PHOTOS), asyncHandler(controller.listPhotos));
+// A LEITURA fica sempre liberada: dados registrados enquanto o módulo estava
+// no plano continuam visíveis mesmo após um downgrade. O plano restringe
+// apenas o registro de NOVAS evidências.
+router.get('/:id/photos', asyncHandler(controller.listPhotos));
 router.post('/:id/photos', requireModule(MODULES.PHOTOS), canOperate, asyncHandler(controller.addPhotos));
 router.delete('/:id/photos/:imageId', requireModule(MODULES.PHOTOS), canOperate, asyncHandler(controller.removePhoto));
 
-// Assinatura digital (módulo contratado).
-router.get('/:id/signature', requireModule(MODULES.SIGNATURE), asyncHandler(controller.getSignature));
+// Assinatura digital (módulo contratado) — leitura sempre liberada.
+router.get('/:id/signature', asyncHandler(controller.getSignature));
 router.post('/:id/signature', requireModule(MODULES.SIGNATURE), canOperate, asyncHandler(controller.saveSignature));
 router.delete('/:id/signature', requireModule(MODULES.SIGNATURE), canOperate, asyncHandler(controller.deleteSignature));
 

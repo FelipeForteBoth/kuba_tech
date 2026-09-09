@@ -34,64 +34,81 @@
       <button class="btn btn-primary" id="btn-new"><i class="fas fa-plus"></i> Nova Empresa</button>
     </div>
 
-    <div class="stat-grid">
-      <div class="stat-card">
-        <div class="stat-icon ico-purple"><i class="fas fa-building"></i></div>
-        <div><div class="stat-val" id="s-empresas">—</div><div class="stat-lbl">Empresas</div></div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon ico-green"><i class="fas fa-circle-check"></i></div>
-        <div><div class="stat-val" id="s-ativas">—</div><div class="stat-lbl">Assinaturas ativas</div></div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon ico-yellow"><i class="fas fa-circle-pause"></i></div>
-        <div><div class="stat-val" id="s-suspensas">—</div><div class="stat-lbl">Assinaturas suspensas</div></div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon ico-red"><i class="fas fa-sack-dollar"></i></div>
-        <div><div class="stat-val" id="s-receita">—</div><div class="stat-lbl">Receita mensal</div></div>
-      </div>
+    <div class="tabs" role="tablist">
+      <button class="tab-btn" id="tab-empresas" role="tab" aria-selected="true" aria-controls="painel-empresas">
+        <i class="fas fa-building"></i> Empresas
+      </button>
+      <button class="tab-btn" id="tab-notificacoes" role="tab" aria-selected="false" aria-controls="painel-notificacoes">
+        <i class="fas fa-bell"></i> Notificações
+        <span class="tab-badge" id="badge-notif" hidden>0</span>
+      </button>
     </div>
 
-    <div class="page-header"><div><h2 class="page-title" style="font-size:18px;">Planos disponíveis</h2></div></div>
-    <div class="stat-grid" id="planos"></div>
-
-    <h2 class="section-title" id="tit-solic">Solicitações de alteração de plano</h2>
-    <div class="toolbar">
-      <div class="f" style="max-width:280px;">
-        <label class="sr-only" for="filtro-solic">Filtrar por situação</label>
-        <select id="filtro-solic">
-          <option value="">Todas as situações</option>
-          <option value="pending">Aguardando análise</option>
-          <option value="in_service">Em atendimento</option>
-          <option value="done">Concluída</option>
-          <option value="rejected">Recusada</option>
-        </select>
+    <section id="painel-empresas" role="tabpanel" aria-labelledby="tab-empresas">
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-icon ico-purple"><i class="fas fa-building"></i></div>
+          <div><div class="stat-val" id="s-empresas">—</div><div class="stat-lbl">Empresas</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon ico-green"><i class="fas fa-circle-check"></i></div>
+          <div><div class="stat-val" id="s-ativas">—</div><div class="stat-lbl">Assinaturas ativas</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon ico-yellow"><i class="fas fa-circle-pause"></i></div>
+          <div><div class="stat-val" id="s-suspensas">—</div><div class="stat-lbl">Assinaturas suspensas</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon ico-red"><i class="fas fa-sack-dollar"></i></div>
+          <div><div class="stat-val" id="s-receita">—</div><div class="stat-lbl">Receita mensal</div></div>
+        </div>
       </div>
-    </div>
-    <div class="pay-cards" id="solicitacoes"></div>
 
-    <h2 class="section-title" id="tit-senhas">Recuperações de senha (Administradores de Empresa)</h2>
-    <div class="pay-cards" id="recuperacoes"></div>
+      <div class="page-header"><div><h2 class="page-title" style="font-size:18px;">Planos disponíveis</h2></div></div>
+      <div class="stat-grid" id="planos"></div>
 
-    <div class="toolbar">
-      <div class="search-wrap">
-        <i class="fas fa-search"></i>
-        <input type="text" class="search-input" id="search-input" placeholder="Buscar por razão social, CNPJ ou e-mail...">
+      <div class="toolbar">
+        <div class="search-wrap">
+          <i class="fas fa-search"></i>
+          <input type="text" class="search-input" id="search-input" placeholder="Buscar por razão social, CNPJ ou e-mail...">
+        </div>
+        <button class="btn-sort" id="btn-sort"><i class="fas fa-sort-alpha-down"></i> A–Z</button>
       </div>
-      <button class="btn-sort" id="btn-sort"><i class="fas fa-sort-alpha-down"></i> A–Z</button>
-    </div>
 
-    <div class="tcard">
-      <div class="tscroll">
-        <table>
-          <thead>
-            <tr><th>Empresa</th><th>CNPJ</th><th>Plano</th><th>Usuários</th><th>O.S.</th><th>Assinatura</th><th></th></tr>
-          </thead>
-          <tbody id="tbody"></tbody>
-        </table>
+      <div class="tcard">
+        <div class="tscroll">
+          <table>
+            <thead>
+              <tr><th>Empresa</th><th>CNPJ</th><th>Plano</th><th>Usuários</th><th>O.S.</th><th>Assinatura</th><th></th></tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
       </div>
-    </div>
+    </section>
+
+    <section id="painel-notificacoes" role="tabpanel" aria-labelledby="tab-notificacoes" hidden>
+      <p class="page-sub">Solicitações enviadas pelas empresas contratantes. Nenhuma senha é exibida aqui.</p>
+
+      <h2 class="section-title" id="tit-solic">Solicitações de alteração de plano</h2>
+      <div class="toolbar">
+        <div class="f" style="max-width:280px;">
+          <label class="sr-only" for="filtro-solic">Filtrar por situação</label>
+          <select id="filtro-solic">
+            <option value="">Todas as situações</option>
+            <option value="pending">Aguardando análise</option>
+            <option value="in_service">Em atendimento</option>
+            <option value="done">Concluída</option>
+            <option value="rejected">Recusada</option>
+          </select>
+        </div>
+      </div>
+      <div class="pay-cards" id="solicitacoes"></div>
+
+      <h2 class="section-title" id="tit-senhas">Solicitações de alteração de senha (Administradores de Empresa)</h2>
+      <div class="pay-cards" id="recuperacoes"></div>
+    </section>
+
 
   </main>
 </div>

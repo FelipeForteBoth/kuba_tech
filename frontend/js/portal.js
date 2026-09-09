@@ -1,5 +1,8 @@
 // ─────────────────────────────────────────────────────────────
-// Módulo Portal do Cliente — consulta pública da O.S. (plano Empresarial).
+// Portal do Cliente — consulta pública das ordens de serviço.
+// CPF é o único campo obrigatório; o número da O.S. é opcional.
+// Sem o número, o portal lista todas as O.S. daquele CPF, em
+// qualquer empresa contratante.
 // ─────────────────────────────────────────────────────────────
 const fmtDate = (v) => (v ? new Date(v).toLocaleDateString('pt-BR') : '—');
 const fmtDateTime = (v) => (v ? new Date(v).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—');
@@ -8,58 +11,80 @@ function badge(status) {
   return osBadge(status);
 }
 
+function cardOS(d) {
+  const progresso = Math.round((d.etapa / d.totalEtapas) * 100);
+  return `
+    <article class="tcard portal-card">
+      <div class="portal-card-hd">
+        <div>
+          <strong>O.S. #${esc(d.numero)}</strong>
+          <span class="stat-lbl">${esc(d.empresa.nome || 'Assistência técnica')}</span>
+        </div>
+        <div class="portal-card-badges">
+          ${badge(d.status)}
+          ${d.atrasada ? '<span class="badge badge-del">Atrasada</span>' : ''}
+        </div>
+      </div>
+
+      <div class="portal-bar" aria-hidden="true"><span style="width:${progresso}%"></span></div>
+      <p class="stat-lbl">Etapa ${d.etapa} de ${d.totalEtapas} · Atendimento ${d.tipo === 'externo' ? 'externo' : 'interno'}</p>
+
+      <div class="d-field"><div class="d-lbl">Cliente</div><div class="d-val">${esc(d.cliente)}</div></div>
+      <div class="d-field"><div class="d-lbl">Equipamento</div><div class="d-val">${esc(d.equipamento)}</div></div>
+      <div class="d-field"><div class="d-lbl">Abertura</div><div class="d-val">${fmtDate(d.abertura)}</div></div>
+      <div class="d-field"><div class="d-lbl">Previsão de atendimento</div><div class="d-val">${fmtDateTime(d.previsao)}</div></div>
+      ${d.agendamento ? `<div class="d-field"><div class="d-lbl">Atendimento agendado</div><div class="d-val">${fmtDateTime(d.agendamento)}</div></div>` : ''}
+      ${d.encerramento ? `<div class="d-field"><div class="d-lbl">Encerramento</div><div class="d-val">${fmtDateTime(d.encerramento)}</div></div>` : ''}
+
+      <div class="d-divider"></div>
+      <div class="d-field"><div class="d-lbl">Defeito relatado</div><div class="d-val pre-box">${esc(d.defeito)}</div></div>
+      <div class="d-field"><div class="d-lbl">Solução aplicada</div><div class="d-val pre-box">${esc(d.solucao || 'Ainda não informada.')}</div></div>
+
+      <div class="d-divider"></div>
+      <div class="d-field"><div class="d-lbl">Contato da assistência</div>
+        <div class="d-val">${esc(d.empresa.telefone || '—')} · ${esc(d.empresa.email || '—')}</div></div>
+      <p class="stat-lbl">Atualizado em ${fmtDateTime(d.atualizadoEm)}</p>
+    </article>`;
+}
+
 async function consultar() {
   const numero = document.getElementById('f-numero').value.trim();
   const cpf = document.getElementById('f-cpf').value.trim();
   const box = document.getElementById('resultado');
 
-  if (!numero) return toast('Informe o número da ordem de serviço.', 'err');
-  if (!isValidCPF(cpf)) return toast('Informe um CPF válido.', 'err');
+  if (!isValidCPF(cpf)) {
+    toast('Informe um CPF válido.', 'err');
+    box.innerHTML = stateMsg('error', 'Informe um CPF válido para consultar.');
+    return;
+  }
 
-  box.innerHTML = '';
+  box.innerHTML = stateMsg('loading', 'Buscando as suas ordens de serviço...');
   try {
     const res = await fetch(`${API_URL}/portal/consulta`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ numero, cpf }),
+      body: JSON.stringify({ cpf, numero: numero || undefined }),
     });
     const d = await res.json();
     if (!res.ok) {
-      toast(d.error || 'Não foi possível consultar a ordem de serviço.', 'err');
+      box.innerHTML = stateMsg('empty', d.error || 'Nenhuma ordem de serviço encontrada.');
       return;
     }
 
+    const ordens = d.ordens || [];
     box.innerHTML = `
-      <div class="tcard" style="padding:20px;">
-        <div class="d-section"><i class="fas fa-file-invoice"></i> Ordem de Serviço #${esc(d.numero)}</div>
-        <div class="d-field"><div class="d-lbl">Situação</div>
-          <div class="d-val">${badge(d.status)} ${d.atrasada ? '<span class="badge badge-todo">Atrasada</span>' : ''}</div></div>
-        <div class="d-field"><div class="d-lbl">Etapa</div><div class="d-val">${d.etapa} de ${d.totalEtapas}</div></div>
-        <div class="d-field"><div class="d-lbl">Abertura</div><div class="d-val">${fmtDate(d.abertura)}</div></div>
-        <div class="d-field"><div class="d-lbl">Previsão de atendimento (SLA)</div><div class="d-val">${fmtDateTime(d.previsao)}</div></div>
-        ${d.agendamento ? `<div class="d-field"><div class="d-lbl">Atendimento agendado</div><div class="d-val">${fmtDateTime(d.agendamento)}</div></div>` : ''}
-        ${d.encerramento ? `<div class="d-field"><div class="d-lbl">Encerramento</div><div class="d-val">${fmtDateTime(d.encerramento)}</div></div>` : ''}
-        <div class="d-divider"></div>
-        <div class="d-section"><i class="fas fa-laptop-medical"></i> Equipamento</div>
-        <div class="d-field"><div class="d-lbl">Cliente</div><div class="d-val">${esc(d.cliente)}</div></div>
-        <div class="d-field"><div class="d-lbl">Equipamento</div><div class="d-val">${esc(d.equipamento)}</div></div>
-        <div class="d-field"><div class="d-lbl">Defeito relatado</div><div class="d-val pre-box">${esc(d.defeito)}</div></div>
-        <div class="d-field"><div class="d-lbl">Solução aplicada</div><div class="d-val pre-box">${esc(d.solucao || 'Ainda não informada.')}</div></div>
-        <div class="d-divider"></div>
-        <div class="d-section"><i class="fas fa-building"></i> Assistência técnica</div>
-        <div class="d-field"><div class="d-lbl">Empresa</div><div class="d-val">${esc(d.empresa.nome)}</div></div>
-        <div class="d-field"><div class="d-lbl">Contato</div>
-          <div class="d-val">${esc(d.empresa.telefone || '—')} · ${esc(d.empresa.email || '—')}</div></div>
-        <div class="stat-lbl" style="margin-top:10px;">Atualizado em ${fmtDateTime(d.atualizadoEm)}</div>
-      </div>`;
+      <p class="page-sub portal-count">${ordens.length} ordem${ordens.length !== 1 ? 'ns' : ''} de serviço encontrada${ordens.length !== 1 ? 's' : ''}.</p>
+      ${ordens.map(cardOS).join('')}`;
   } catch {
-    toast('Falha de conexão com o servidor.', 'err');
+    box.innerHTML = stateMsg('error', 'Falha de conexão com o servidor.');
   }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-consultar').addEventListener('click', consultar);
-  document.getElementById('f-cpf').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') consultar();
+  ['f-cpf', 'f-numero'].forEach((id) => {
+    document.getElementById(id).addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') consultar();
+    });
   });
 });

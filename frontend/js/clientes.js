@@ -56,7 +56,9 @@ function viewCliente(id) {
   if (!c) return;
   editingId = null;
 
-  const endereco = [c.address, c.neighborhood, c.city, c.state, c.zip_code].filter(Boolean).join(', ');
+  const logradouro = [c.address, c.address_number].filter(Boolean).join(', ');
+  const endereco = [logradouro, c.complement, c.neighborhood, c.city, c.state, c.zip_code]
+    .filter(Boolean).join(', ');
 
   document.getElementById('drawer-title').textContent = c.name;
   document.getElementById('drawer-mode').textContent =
@@ -140,15 +142,6 @@ function formHTML(c) {
 
 
 
-    <div class="grid-2" id="fg-receita">
-      <div class="fg" id="fg-abertura" style="${pj ? '' : 'display:none;'}">
-        <label for="f-abertura">Data de abertura</label>
-        <input type="date" class="fc" id="f-abertura" value="${esc(c && c.opening_date ? String(c.opening_date).slice(0, 10) : '')}"></div>
-    </div>
-    <div class="fg" id="fg-cnae" style="${pj ? '' : 'display:none;'}">
-      <label for="f-cnae">CNAE principal</label>
-      <input type="text" class="fc" id="f-cnae" value="${esc(c ? (c.cnae || '') : '')}" placeholder="Atividade econômica principal"></div>
-
     <div class="d-divider"></div>
     <div class="d-section"><i class="fas fa-user"></i> Contato</div>
     <div class="fg"><label id="lbl-nome">${pj ? 'Nome do contato / fantasia *' : 'Nome completo *'}</label>
@@ -160,11 +153,18 @@ function formHTML(c) {
       <input type="email" class="fc" id="f-email" value="${esc(c ? c.email : '')}" placeholder="email@exemplo.com"></div>
 
     <div class="d-divider"></div>
-    <div class="d-section"><i class="fas fa-location-dot"></i> Endereço (opcional)</div>
+    <div class="d-section"><i class="fas fa-location-dot"></i> Endereço</div>
     <div class="fg"><label>CEP</label>
       <input type="text" class="fc" id="f-cep" maxlength="9" value="${esc(c ? (c.zip_code || '') : '')}" placeholder="00000-000"></div>
     <div class="fg"><label>Rua</label>
       <input type="text" class="fc" id="f-rua" value="${esc(c ? (c.address || '') : '')}"></div>
+    <div class="grid-2">
+      <div class="fg"><label>Número *</label>
+        <input type="text" class="fc" id="f-numero" maxlength="20" value="${esc(c ? (c.address_number || '') : '')}" placeholder="123 ou SN">
+        <span class="stat-lbl">Use <strong>SN</strong> quando o local não tiver número.</span></div>
+      <div class="fg"><label>Complemento</label>
+        <input type="text" class="fc" id="f-complemento" maxlength="120" value="${esc(c ? (c.complement || '') : '')}" placeholder="Apto, sala, bloco..."></div>
+    </div>
     <div class="grid-2">
       <div class="fg"><label>Bairro</label>
         <input type="text" class="fc" id="f-bairro" value="${esc(c ? (c.neighborhood || '') : '')}"></div>
@@ -193,8 +193,6 @@ function bindDocumento() {
       document.getElementById('lbl-nome').textContent = pj ? 'Nome do contato / fantasia *' : 'Nome completo *';
       document.getElementById('fg-razao').style.display = pj ? '' : 'none';
       document.getElementById('fg-fantasia').style.display = pj ? '' : 'none';
-      document.getElementById('fg-cnae').style.display = pj ? '' : 'none';
-      document.getElementById('fg-abertura').style.display = pj ? '' : 'none';
       document.getElementById('doc-hint').textContent = pj
         ? 'A razão social e o endereço são preenchidos automaticamente pela Receita Federal.'
         : 'O nome do titular é preenchido automaticamente pela consulta do CPF.';
@@ -258,8 +256,7 @@ async function consultarDocumento() {
     document.getElementById('f-cidade').value = d.cidade || '';
     document.getElementById('f-estado').value = d.estado || '';
     document.getElementById('f-fantasia').value = d.nomeFantasia || '';
-    document.getElementById('f-cnae').value = d.cnae || '';
-    if (d.dataAbertura) document.getElementById('f-abertura').value = String(d.dataAbertura).slice(0, 10);
+    if (d.numero && !document.getElementById('f-numero').value) document.getElementById('f-numero').value = d.numero;
     if (d.email && !document.getElementById('f-email').value) document.getElementById('f-email').value = d.email;
     if (d.telefone && !document.getElementById('f-tel').value) {
       document.getElementById('f-tel').value = maskPhone(d.telefone);
@@ -303,6 +300,10 @@ async function saveCliente() {
   if (!isValidPhone(phone)) return toast('Telefone inválido. Use (00) 00000-0000.', 'err');
   if (!isValidEmail(email)) return toast('E-mail inválido.', 'err');
 
+  const numero = document.getElementById('f-numero').value.trim().toUpperCase();
+  if (!numero) return toast('Informe o número do endereço (use SN quando não houver número).', 'err');
+  if (!/^[0-9A-ZÀ-Ÿ/ .-]+$/.test(numero)) return toast('Número do endereço inválido.', 'err');
+
   const payload = {
     documentType,
     documentNumber,
@@ -312,12 +313,12 @@ async function saveCliente() {
     email,
     zipCode: document.getElementById('f-cep').value.trim(),
     address: document.getElementById('f-rua').value.trim(),
+    addressNumber: numero,
+    complement: document.getElementById('f-complemento').value.trim() || null,
     neighborhood: document.getElementById('f-bairro').value.trim(),
     city: document.getElementById('f-cidade').value.trim(),
     state: document.getElementById('f-estado').value.trim().toUpperCase(),
     tradeName: (document.getElementById('f-fantasia') || {}).value || null,
-    cnae: (document.getElementById('f-cnae') || {}).value || null,
-    openingDate: (document.getElementById('f-abertura') || {}).value || null,
   };
 
   const url = editingId ? `${API_URL}/customers/${editingId}` : `${API_URL}/customers`;

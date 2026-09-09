@@ -230,12 +230,12 @@ CREATE TABLE IF NOT EXISTS customers (
     name            VARCHAR(120) NOT NULL,
     company_name    VARCHAR(255),
     trade_name      VARCHAR(150),
-    cnae            VARCHAR(160),
-    opening_date    DATE,
     phone           VARCHAR(15)  NOT NULL,
     email           VARCHAR(120) NOT NULL,
     zip_code        VARCHAR(10),
     address         TEXT,
+    address_number  VARCHAR(20),
+    complement      VARCHAR(120),
     neighborhood    VARCHAR(100),
     city            VARCHAR(100),
     state           VARCHAR(50),
@@ -247,18 +247,25 @@ ALTER TABLE customers ADD COLUMN IF NOT EXISTS document_type   VARCHAR(10);
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS document_number VARCHAR(20);
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS company_name    VARCHAR(255);
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS trade_name      VARCHAR(150);
-ALTER TABLE customers ADD COLUMN IF NOT EXISTS cnae            VARCHAR(160);
-ALTER TABLE customers ADD COLUMN IF NOT EXISTS opening_date    DATE;
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS zip_code        VARCHAR(10);
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS address         TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS address_number  VARCHAR(20);
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS complement      VARCHAR(120);
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS neighborhood    VARCHAR(100);
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS city            VARCHAR(100);
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS state           VARCHAR(50);
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS deleted_at      TIMESTAMPTZ;
 
--- Campos descontinuados nesta versão (situação cadastral e nascimento).
+-- Endereços já cadastrados sem número recebem "SN" (nenhum dado é perdido).
+UPDATE customers SET address_number = 'SN'
+ WHERE address_number IS NULL AND address IS NOT NULL;
+
+-- Campos descontinuados nesta versão
+-- (situação cadastral, nascimento, data de abertura e CNAE).
 ALTER TABLE customers DROP COLUMN IF EXISTS registration_status;
 ALTER TABLE customers DROP COLUMN IF EXISTS birth_date;
+ALTER TABLE customers DROP COLUMN IF EXISTS cnae;
+ALTER TABLE customers DROP COLUMN IF EXISTS opening_date;
 
 UPDATE customers SET document_type   = 'CPF' WHERE document_type   IS NULL;
 UPDATE customers SET document_number = cpf   WHERE document_number IS NULL;

@@ -16,7 +16,9 @@ router.use(
   authorize(ROLES.COMPANY_ADMIN, ROLES.MANAGER),
 );
 
+router.get('/filters', asyncHandler(controller.filters));
 router.get('/overview', asyncHandler(controller.overview));
+router.get('/detail', asyncHandler(controller.detail));
 router.get('/export', asyncHandler(controller.exportCsv));
 
 module.exports = router;

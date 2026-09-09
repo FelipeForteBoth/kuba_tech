@@ -321,6 +321,58 @@ const THEME_CSS = `
 
 /* Caixas auxiliares que tinham fundo claro fixo */
 :root[data-theme="dark"] .pre-box { background: #0f1830 !important; border-color: var(--border) !important; color: var(--text) !important; }
+
+/* ── Contraste geral no modo escuro ───────────────────────────
+   Superfícies, textos e componentes que ainda usavam tons claros
+   fixos passam a seguir as variáveis do tema. */
+:root[data-theme="dark"] .navbar,
+:root[data-theme="dark"] #sidebar,
+:root[data-theme="dark"] .tcard,
+:root[data-theme="dark"] .stat-card,
+:root[data-theme="dark"] .toolbar,
+:root[data-theme="dark"] .notif-item,
+:root[data-theme="dark"] .portal-card,
+:root[data-theme="dark"] .tab-btn,
+:root[data-theme="dark"] .au-card,
+:root[data-theme="dark"] .lp-card {
+  background: var(--card) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+:root[data-theme="dark"] .page-title,
+:root[data-theme="dark"] .stat-val,
+:root[data-theme="dark"] .rep-title,
+:root[data-theme="dark"] .d-val,
+:root[data-theme="dark"] h1, :root[data-theme="dark"] h2,
+:root[data-theme="dark"] h3, :root[data-theme="dark"] label,
+:root[data-theme="dark"] strong { color: var(--text) !important; }
+:root[data-theme="dark"] .page-sub,
+:root[data-theme="dark"] .stat-lbl,
+:root[data-theme="dark"] .d-lbl,
+:root[data-theme="dark"] .chart-lbl,
+:root[data-theme="dark"] .chart-col-lbl,
+:root[data-theme="dark"] .portal-footer,
+:root[data-theme="dark"] .rep-f { color: var(--text-2) !important; }
+:root[data-theme="dark"] .nav-item { color: var(--text-2) !important; }
+:root[data-theme="dark"] .nav-item:hover,
+:root[data-theme="dark"] .nav-item.active { background: #1b2540 !important; color: var(--text) !important; }
+:root[data-theme="dark"] .filter-sel,
+:root[data-theme="dark"] .fc { background: #0f1830 !important; color: var(--text) !important; border-color: var(--border) !important; }
+:root[data-theme="dark"] .fc::placeholder { color: var(--text-3) !important; }
+:root[data-theme="dark"] .chart-track,
+:root[data-theme="dark"] .portal-bar { background: #1b2540 !important; }
+:root[data-theme="dark"] .chip { background: #1b2540 !important; color: var(--text) !important; border-color: var(--border) !important; }
+:root[data-theme="dark"] .empty,
+:root[data-theme="dark"] .empty p { color: var(--text-2) !important; }
+:root[data-theme="dark"] .timeline li { border-color: var(--border) !important; color: var(--text) !important; }
+/* Selo de status: fundo escurecido, texto claro e legível */
+:root[data-theme="dark"] .badge { filter: brightness(.85) saturate(1.15); color: #f8fafc !important; }
+:root[data-theme="dark"] input[type="date"],
+:root[data-theme="dark"] input[type="time"],
+:root[data-theme="dark"] input[type="number"] { color-scheme: dark; }
+/* A assinatura é sempre capturada em fundo branco (documento legal) */
+:root[data-theme="dark"] .assinatura-canvas,
+:root[data-theme="dark"] .assinatura-img { background: #ffffff !important; }
 `;
 
 function ensureThemeStyle() {

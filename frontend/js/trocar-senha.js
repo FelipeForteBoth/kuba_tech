@@ -1,7 +1,9 @@
 // ─────────────────────────────────────────────────────────────
 // Primeiro acesso: troca obrigatória da senha temporária.
-// Enquanto a troca não acontecer, o back-end responde 423 em
-// todas as demais rotas.
+// O usuário já entrou com a senha temporária, então ela NÃO é
+// solicitada novamente: pedimos apenas a nova senha e a confirmação.
+// Enquanto a troca não acontecer, o back-end responde 423 nas
+// demais rotas.
 // ─────────────────────────────────────────────────────────────
 
 function setMensagem(texto, tipo = '') {
@@ -16,15 +18,12 @@ function senhaValida(senha) {
 
 async function salvar() {
   const btn = document.getElementById('btn-salvar');
-  const atual = document.getElementById('atual').value;
   const nova = document.getElementById('nova').value;
   const confirma = document.getElementById('confirma').value;
 
-  if (!atual) return setMensagem('Informe a senha temporária recebida.', 'err');
   if (!senhaValida(nova)) {
     return setMensagem('A nova senha deve ter ao menos 8 caracteres, com letras e números.', 'err');
   }
-  if (nova === atual) return setMensagem('A nova senha deve ser diferente da temporária.', 'err');
   if (nova !== confirma) return setMensagem('As senhas não conferem.', 'err');
 
   btn.disabled = true;
@@ -34,7 +33,7 @@ async function salvar() {
     const res = await fetch(`${API_URL}/auth/password`, {
       method: 'PUT',
       headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ currentPassword: atual, newPassword: nova }),
+      body: JSON.stringify({ newPassword: nova }),
     });
     const dados = await res.json();
     if (!res.ok) {
@@ -44,11 +43,16 @@ async function salvar() {
 
     // Atualiza a sessão local: o usuário deixa de estar em primeiro acesso.
     const sessao = getSession();
-    if (sessao) setSession(sessao.token, { ...sessao.usuario, trocarSenha: false });
+    const perfil = dados.usuario ? dados.usuario.perfil : (sessao && sessao.usuario.perfil) || 'company_admin';
+    if (dados.token && dados.usuario) {
+      setSession(dados.token, dados.usuario);
+    } else if (sessao) {
+      setSession(sessao.token, { ...sessao.usuario, trocarSenha: false });
+    }
 
     setMensagem('Senha atualizada! Redirecionando para o seu painel...', 'ok');
     setTimeout(() => {
-      window.location.href = homePageFor(sessao ? sessao.usuario.perfil : 'company_admin');
+      window.location.href = homePageFor(perfil);
     }, 1200);
   } catch {
     btn.disabled = false;

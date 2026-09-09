@@ -33,6 +33,26 @@ const REQ_STATUS = {
   rejected: ['Recusada', 'badge-del'],
 };
 
+// ── Aba de Notificações (solicitações das empresas contratantes) ──
+/** Soma as solicitações pendentes e destaca a aba de notificações. */
+function atualizarBadge() {
+  const badge = document.getElementById('badge-notif');
+  if (!badge) return;
+  const pendentes = solicitacoes.filter((s) => s.status === 'pending').length
+    + recuperacoes.filter((r) => r.status === 'pending').length;
+  badge.textContent = pendentes;
+  badge.hidden = pendentes === 0;
+}
+
+function trocarAba(alvo) {
+  const abas = { empresas: 'painel-empresas', notificacoes: 'painel-notificacoes' };
+  Object.entries(abas).forEach(([nome, painel]) => {
+    const ativa = nome === alvo;
+    document.getElementById(`tab-${nome}`).setAttribute('aria-selected', String(ativa));
+    document.getElementById(painel).hidden = !ativa;
+  });
+}
+
 // ── Solicitações de alteração de plano ──
 async function loadSolicitacoes() {
   const box = document.getElementById('solicitacoes');
@@ -52,6 +72,7 @@ async function loadSolicitacoes() {
 
 function renderSolicitacoes() {
   const box = document.getElementById('solicitacoes');
+  atualizarBadge();
   if (!solicitacoes.length) {
     box.innerHTML = stateMsg('empty', 'Nenhuma solicitação de plano no momento.');
     return;
@@ -125,6 +146,7 @@ async function loadRecuperacoes() {
 
 function renderRecuperacoes() {
   const box = document.getElementById('recuperacoes');
+  atualizarBadge();
   if (!recuperacoes.length) {
     box.innerHTML = stateMsg('empty', 'Nenhuma solicitação de recuperação de senha.');
     return;
@@ -465,6 +487,8 @@ document.addEventListener('DOMContentLoaded', () => {
   loadRecuperacoes();
   const filtro = document.getElementById('filtro-solic');
   if (filtro) filtro.addEventListener('change', loadSolicitacoes);
+  document.getElementById('tab-empresas').addEventListener('click', () => trocarAba('empresas'));
+  document.getElementById('tab-notificacoes').addEventListener('click', () => trocarAba('notificacoes'));
   const btnNew = document.getElementById('btn-new');
   if (btnNew) btnNew.addEventListener('click', newEmpresa);
   document.getElementById('search-input').addEventListener('input', applyFilter);

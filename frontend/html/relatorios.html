@@ -35,8 +35,8 @@
 
     <div class="page-header">
       <div>
-        <h1 class="page-title">Relatórios</h1>
-        <p class="page-sub" id="sub-info">Indicadores gerenciais do período</p>
+        <h1 class="page-title">Dashboard Gerencial</h1>
+        <p class="page-sub" id="sub-info">Indicadores das ordens de serviço no período</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button class="btn btn-ghost" id="btn-export"><i class="fas fa-file-csv"></i> Exportar CSV</button>
@@ -44,14 +44,17 @@
       </div>
     </div>
 
-    <div class="toolbar">
-      <label style="display:flex;align-items:center;gap:6px;font-size:13px;">
-        De <input type="date" class="filter-sel" id="f-from">
-      </label>
-      <label style="display:flex;align-items:center;gap:6px;font-size:13px;">
-        Até <input type="date" class="filter-sel" id="f-to">
-      </label>
+    <div class="toolbar rep-filters">
+      <label class="rep-f">De <input type="date" class="filter-sel" id="f-from"></label>
+      <label class="rep-f">Até <input type="date" class="filter-sel" id="f-to"></label>
+      <label class="rep-f">Técnico <select class="filter-sel" id="f-tec"><option value="">Todos</option></select></label>
+      <label class="rep-f">Cliente <select class="filter-sel" id="f-cli"><option value="">Todos</option></select></label>
+      <label class="rep-f">Status <select class="filter-sel" id="f-status"><option value="">Todos</option></select></label>
+      <label class="rep-f">Atendimento <select class="filter-sel" id="f-tipo">
+        <option value="">Todos</option><option value="interno">Interno</option><option value="externo">Externo</option>
+      </select></label>
       <button class="btn btn-primary" id="btn-filter"><i class="fas fa-filter"></i> Aplicar</button>
+      <button class="btn btn-ghost" id="btn-clear"><i class="fas fa-rotate-left"></i> Limpar</button>
     </div>
 
     <div class="stat-grid">
@@ -77,16 +80,27 @@
       </div>
     </div>
 
-    <div class="tcard">
-      <div class="tscroll">
-        <table>
-          <thead><tr><th colspan="2">Evolução mensal das aberturas</th></tr></thead>
-          <tbody id="t-mensal"></tbody>
-        </table>
-      </div>
+    <div class="rep-grid">
+      <section class="tcard rep-chart">
+        <h2 class="rep-title">Evolução mensal das aberturas</h2>
+        <div id="g-mensal" class="chart-cols"></div>
+      </section>
+      <section class="tcard rep-chart">
+        <h2 class="rep-title">Distribuição por status</h2>
+        <div id="g-status" class="chart-bars"></div>
+      </section>
+      <section class="tcard rep-chart">
+        <h2 class="rep-title">Tipo de atendimento</h2>
+        <div id="g-tipo" class="chart-bars"></div>
+      </section>
+      <section class="tcard rep-chart">
+        <h2 class="rep-title">Equipamentos mais atendidos</h2>
+        <div id="g-equip" class="chart-bars"></div>
+      </section>
     </div>
 
     <div class="tcard" style="margin-top:18px;">
+      <h2 class="rep-title">Produtividade por técnico</h2>
       <div class="tscroll">
         <table>
           <thead>
@@ -97,23 +111,16 @@
       </div>
     </div>
 
-    <div class="tcard" style="margin-top:18px;">
+    <div class="tcard" style="margin-top:18px;margin-bottom:24px;">
+      <h2 class="rep-title">Clientes com mais atendimentos</h2>
       <div class="tscroll">
         <table>
-          <thead><tr><th>Cliente</th><th>CPF</th><th>Atendimentos</th></tr></thead>
+          <thead><tr><th>Cliente</th><th>Documento</th><th>Atendimentos</th></tr></thead>
           <tbody id="t-clientes"></tbody>
         </table>
       </div>
     </div>
 
-    <div class="tcard" style="margin-top:18px;margin-bottom:24px;">
-      <div class="tscroll">
-        <table>
-          <thead><tr><th>Tipo de equipamento</th><th>Atendimentos</th></tr></thead>
-          <tbody id="t-equipamentos"></tbody>
-        </table>
-      </div>
-    </div>
 
   </main>
 </div>

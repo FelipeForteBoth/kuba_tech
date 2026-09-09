@@ -52,6 +52,24 @@ const OS_TRANSITIONS = {
 // Tipo de atendimento.
 const SERVICE_TYPES = ['interno', 'externo'];
 
+// A O.S. INTERNA é executada na própria assistência: não existe
+// deslocamento da equipe nem espera no local do cliente.
+const OS_INTERNAL_BLOCKED_STATUS = ['Em deslocamento', 'No local', 'Aguardando cliente'];
+
+/** Status válidos para o tipo de atendimento informado. */
+function osStatusesFor(serviceType) {
+  return serviceType === 'interno'
+    ? OS_STATUS.filter((s) => !OS_INTERNAL_BLOCKED_STATUS.includes(s))
+    : OS_STATUS;
+}
+
+/** Transições permitidas a partir de um status, respeitando o tipo de atendimento. */
+function osTransitionsFor(serviceType, status) {
+  const permitidas = OS_TRANSITIONS[status] || [];
+  if (serviceType !== 'interno') return permitidas;
+  return permitidas.filter((s) => !OS_INTERNAL_BLOCKED_STATUS.includes(s));
+}
+
 // Diagnóstico do encerramento (regra das evidências fotográficas).
 const DIAGNOSIS = ['Serviço Completo', 'Encerramento Interno'];
 const DIAGNOSIS_FULL_SERVICE = 'Serviço Completo';

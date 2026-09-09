@@ -15,7 +15,9 @@ const {
   OS_STATUS,
   OS_INITIAL_STATUS,
   OS_CLOSED_STATUS,
-  OS_TRANSITIONS,
+  osTransitionsFor,
+  osStatusesFor,
+  OS_INTERNAL_BLOCKED_STATUS,
   SERVICE_TYPES,
   DIAGNOSIS,
   DIAGNOSIS_FULL_SERVICE,
@@ -149,7 +151,10 @@ async function validatePayload(req, current = null) {
 
   if (!isValidUUID(customerId)) throw new AppError('Selecione o cliente da ordem de serviço.');
   if (!isValidUUID(deviceId)) throw new AppError('Selecione o equipamento da ordem de serviço.');
-  if (technicianId && !isValidUUID(technicianId)) throw new AppError('Técnico inválido.');
+  if (!technicianId) {
+    throw new AppError('Selecione o técnico responsável. Um usuário "Técnico" deve ser cadastrado para prosseguir.');
+  }
+  if (!isValidUUID(technicianId)) throw new AppError('Técnico inválido.');
   if (!isValidPastOrTodayDate(openingDate)) throw new AppError('Data de abertura inválida. Não pode ser futura.');
   if (!isNonEmptyText(problemDescription, 10)) throw new AppError('Descreva o problema com pelo menos 10 caracteres.');
   if (!OS_STATUS.includes(status)) throw new AppError('Status inválido.');
@@ -161,14 +166,17 @@ async function validatePayload(req, current = null) {
   if (!device) throw new AppError('Equipamento não encontrado nesta empresa.', 404);
   if (device.customer_id !== customerId) throw new AppError('O equipamento selecionado não pertence a este cliente.');
 
-  if (technicianId) {
-    const technician = await userModel.findById(req.tenantId, technicianId);
-    if (!technician || technician.role !== ROLES.TECHNICIAN || technician.active === false) {
-      throw new AppError('Selecione um usuário com o perfil Técnico da empresa.');
-    }
+  const technician = await userModel.findById(req.tenantId, technicianId);
+  if (!technician || technician.role !== ROLES.TECHNICIAN || technician.active === false) {
+    throw new AppError('Selecione um usuário com o perfil Técnico da empresa.');
   }
 
   const location = await resolveLocation(req, req.body, current);
+
+  // A O.S. interna não possui etapas de deslocamento.
+  if (!osStatusesFor(location.serviceType).includes(status)) {
+    throw new AppError(`O status "${status}" não se aplica ao atendimento ${location.serviceType}.`);
+  }
 
   return {
     customerId, deviceId, technicianId, openingDate, problemDescription,
@@ -224,6 +232,7 @@ async function schedule(req, res) {
 
   const scheduledAt = parseScheduledAt(req.body.scheduledAt);
 
+  // Toda O.S. precisa de um técnico: ou o informado agora, ou o já atribuído.
   const technicianId = String(req.body.technicianId || '').trim() || null;
   if (technicianId) {
     if (!isValidUUID(technicianId)) throw new AppError('Técnico inválido.');
@@ -231,6 +240,8 @@ async function schedule(req, res) {
     if (!technician || technician.role !== ROLES.TECHNICIAN || technician.active === false) {
       throw new AppError('Selecione um usuário com o perfil Técnico da empresa.');
     }
+  } else if (!order.technician_id) {
+    throw new AppError('Selecione o técnico responsável pelo atendimento.');
   }
 
   await model.scheduleOrder(req.tenantId, req.params.id, { scheduledAt, technicianId });
@@ -275,7 +286,11 @@ async function updateStatus(req, res) {
   if (status === 'Agendado') {
     throw new AppError('Use a programação do atendimento para agendar a ordem de serviço.');
   }
-  if (status !== order.status && !(OS_TRANSITIONS[order.status] || []).includes(status)) {
+  const tipo = order.service_type === 'externo' ? 'externo' : 'interno';
+  if (tipo === 'interno' && OS_INTERNAL_BLOCKED_STATUS.includes(status)) {
+    throw new AppError('A ordem de serviço interna não possui etapas de deslocamento.');
+  }
+  if (status !== order.status && !osTransitionsFor(tipo, order.status).includes(status)) {
     throw new AppError(`Não é possível mudar de "${order.status}" para "${status}".`);
   }
   if (status === 'Finalizado') {

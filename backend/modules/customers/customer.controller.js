@@ -84,19 +84,30 @@ function validateContact(body, documentType) {
 
 /** Dados públicos complementares (Receita Federal / consulta de CPF). */
 function publicFields(body, receita) {
-  const data = (value) => (/^\d{4}-\d{2}-\d{2}$/.test(String(value || '').trim()) ? String(value).trim() : null);
   return {
     tradeName: optionalText(body.tradeName, 150) || (receita && receita.nomeFantasia) || null,
-    birthDate: data(body.birthDate),
-    cnae: optionalText(body.cnae, 160) || (receita && receita.cnae) || null,
-    openingDate: data(body.openingDate) || data(receita && receita.dataAbertura),
   };
+}
+
+/**
+ * Número do endereço: obrigatório. Aceita números e também "SN"
+ * (sem número), padronizado em maiúsculas.
+ */
+function parseAddressNumber(value, receita) {
+  const bruto = String(value || '').trim() || String((receita && receita.numero) || '').trim();
+  if (!bruto) throw new AppError('Informe o número do endereço (use SN quando não houver número).');
+  const normalizado = bruto.toUpperCase().replace(/\s+/g, ' ').slice(0, 20);
+  if (['SN', 'S/N', 'S N', 'S.N.', 'SEM NUMERO', 'SEM NÚMERO'].includes(normalizado)) return 'SN';
+  if (!/^[0-9A-ZÀ-Ÿ/ .-]+$/.test(normalizado)) throw new AppError('Número do endereço inválido.');
+  return normalizado;
 }
 
 function addressFields(body, receita) {
   return {
     zipCode: optionalText(body.zipCode, 10) || (receita && receita.cep ? receita.cep : null),
     address: optionalText(body.address, 255) || (receita && receita.logradouro) || null,
+    addressNumber: parseAddressNumber(body.addressNumber, receita),
+    complement: optionalText(body.complement, 120),
     neighborhood: optionalText(body.neighborhood, 100) || (receita && receita.bairro) || null,
     city: optionalText(body.city, 100) || (receita && receita.cidade) || null,
     state: optionalText(body.state, 50) || (receita && receita.estado) || null,

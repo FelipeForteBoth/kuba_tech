@@ -29,6 +29,22 @@ const TRANSICOES = {
   Cancelado: [],
 };
 
+// A O.S. INTERNA é executada na própria assistência: não existem etapas
+// de deslocamento, chegada ao local nem espera pelo cliente no local.
+const STATUS_SO_EXTERNO = ['Em deslocamento', 'No local', 'Aguardando cliente'];
+
+/** Status válidos conforme o tipo de atendimento. */
+function statusPara(serviceType) {
+  return serviceType === 'externo' ? STATUS : STATUS.filter((s) => !STATUS_SO_EXTERNO.includes(s));
+}
+
+/** Próximos status possíveis, respeitando o tipo de atendimento. */
+function transicoesDe(o) {
+  const opcoes = TRANSICOES[o.status] || [];
+  if (o.service_type === 'externo') return opcoes;
+  return opcoes.filter((s) => !STATUS_SO_EXTERNO.includes(s));
+}
+
 const temFotos = () => hasModule('service-order-photos');
 const temAssinatura = () => hasModule('digital-signature');
 const temGeo = () => hasModule('geolocation');
@@ -239,7 +255,7 @@ async function viewOS(id) {
     <a class="btn btn-primary btn-maps" target="_blank" rel="noopener" href="${mapsUrl(o)}">
       <i class="fas fa-map-location-dot"></i> Abrir no Google Maps</a>` : ''}
 
-    ${SLA_ENCERRADAS.includes(o.status) && temFotos() ? `
+    ${SLA_ENCERRADAS.includes(o.status) ? `
     <div class="d-divider"></div>
     <div class="d-section"><i class="fas fa-camera"></i> Evidências fotográficas</div>
     <div id="galeria" class="foto-grid"><span class="stat-lbl">Carregando fotos...</span></div>` : ''}
@@ -251,7 +267,7 @@ async function viewOS(id) {
   const acoes = [];
   if (canDelete()) acoes.push(`<button class="btn btn-del btn-sm" onclick="deleteOS('${o.id}')"><i class="fas fa-trash"></i> Excluir</button>`);
   if (can('orders')) acoes.push(`<button class="btn btn-ghost btn-sm" onclick="editOS('${o.id}')"><i class="fas fa-edit"></i> Editar</button>`);
-  if (can('orderStatus') && (TRANSICOES[o.status] || []).includes('Finalizado')) {
+  if (can('orderStatus') && transicoesDe(o).includes('Finalizado')) {
     acoes.push(`<button class="btn btn-primary btn-sm" onclick="abrirFinalizacao('${o.id}')"><i class="fas fa-check"></i> Finalizar O.S.</button>`);
   }
   document.getElementById('drawer-ft').innerHTML = acoes.join('');
@@ -267,7 +283,7 @@ async function carregarFotos(id) {
   if (!box) return;
   try {
     const res = await authFetch(`${API_URL}/service-orders/${id}/photos`);
-    if (!res.ok) { box.innerHTML = '<span class="stat-lbl">Módulo indisponível no plano.</span>'; return; }
+    if (!res.ok) { box.innerHTML = '<span class="stat-lbl">Não foi possível carregar as fotos.</span>'; return; }
     const dados = await res.json();
     const fotos = dados.fotos || [];
     const contador = document.getElementById('foto-contador');
@@ -277,7 +293,7 @@ async function carregarFotos(id) {
       ? fotos.map((f) => `
         <figure class="foto-item">
           <img src="${esc(f.image_url)}" alt="Evidência da O.S." loading="lazy" onclick="ampliarFoto('${esc(f.image_url)}')">
-          ${can('photos') ? `<button class="foto-x" title="Excluir" onclick="removerFoto('${id}','${f.id}')">×</button>` : ''}
+          ${can('photos') && temFotos() ? `<button class="foto-x" title="Excluir" onclick="removerFoto('${id}','${f.id}')">×</button>` : ''}
         </figure>`).join('')
       : '<span class="stat-lbl">Nenhuma evidência registrada.</span>';
   } catch {
@@ -335,14 +351,14 @@ async function carregarAssinatura(id) {
   const o = orders.find((x) => x.id === id) || {};
   try {
     const res = await authFetch(`${API_URL}/service-orders/${id}/signature`);
-    if (!res.ok) { box.innerHTML = '<span class="stat-lbl">Módulo indisponível no plano.</span>'; return; }
+    if (!res.ok) { box.innerHTML = '<span class="stat-lbl">Não foi possível carregar a assinatura.</span>'; return; }
     const { assinatura } = await res.json();
 
     if (assinatura) {
       box.innerHTML = `
         <img class="assinatura-img" src="${esc(assinatura.signature_url)}" alt="Assinatura do cliente">
         <div class="stat-lbl">Assinado por ${esc(assinatura.signer_name || '—')} em ${fmtDateTime(assinatura.signed_at)}</div>
-        ${can('signature') && !['Entregue', 'Cancelado'].includes(o.status)
+        ${can('signature') && temAssinatura() && !['Entregue', 'Cancelado'].includes(o.status)
           ? `<button class="btn btn-ghost btn-sm" onclick="abrirAssinatura('${id}')"><i class="fas fa-pen"></i> Assinar novamente</button>` : ''}`;
       return;
     }
@@ -351,7 +367,7 @@ async function carregarAssinatura(id) {
       <span class="stat-lbl">${o.service_type === 'externo'
         ? 'Assinatura obrigatória para finalizar o atendimento externo.'
         : 'Assinatura opcional para o atendimento interno.'}</span><br>
-      ${can('signature') && !['Entregue', 'Cancelado'].includes(o.status)
+      ${can('signature') && temAssinatura() && !['Entregue', 'Cancelado'].includes(o.status)
         ? `<button class="btn btn-ghost btn-sm" onclick="abrirAssinatura('${id}')"><i class="fas fa-signature"></i> Capturar assinatura</button>` : ''}`;
   } catch {
     box.innerHTML = '<span class="stat-lbl">Não foi possível carregar a assinatura.</span>';
@@ -451,7 +467,7 @@ async function carregarHistorico(id) {
 // ── Andamento rápido (chips direto no painel da O.S.) ──
 function statusChips(o) {
   if (!can('orderStatus')) return '';
-  const opcoes = TRANSICOES[o.status] || [];
+  const opcoes = transicoesDe(o);
   const podeAgendar = !SLA_ENCERRADAS.includes(o.status);
   const chips = [];
 
@@ -763,15 +779,18 @@ function formHTML(o) {
     <div class="d-section"><i class="fas fa-clipboard-list"></i> Atendimento</div>
     <div class="fg"><label>Data de abertura *</label>
       <input type="date" class="fc" id="f-data" max="${hoje}" value="${o ? String(o.opening_date).slice(0, 10) : hoje}"></div>
-    <div class="fg"><label>Técnico responsável</label>
+    <div class="fg"><label>Técnico responsável *</label>
       <select class="fc" id="f-tecnico">
-        <option value="">Atribuir depois</option>
-        ${techniciansRef.map((t) => `<option value="${t.id}" ${o && o.technician_id === t.id ? 'selected' : ''}>${esc(t.name)}${t.active === false ? ' (inativo)' : ''}</option>`).join('')}
-      </select></div>
+        <option value="">Selecione o técnico</option>
+        ${techniciansRef.filter((t) => t.active !== false).map((t) => `<option value="${t.id}" ${o && o.technician_id === t.id ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}
+      </select>
+      ${techniciansRef.filter((t) => t.active !== false).length
+        ? '<span class="stat-lbl">Toda ordem de serviço precisa de um técnico responsável.</span>'
+        : '<span class="stat-lbl">Nenhum usuário com o perfil <strong>Técnico</strong> está cadastrado. Cadastre um técnico em Usuários antes de abrir a O.S.</span>'}</div>
     ${o
       ? `<div class="fg"><label>Status *</label>
       <select class="fc" id="f-status">
-        ${STATUS.map((s) => `<option value="${s}" ${o.status === s ? 'selected' : ''}>${s}</option>`).join('')}
+        ${statusPara(o.service_type).map((s) => `<option value="${s}" ${o.status === s ? 'selected' : ''}>${s}</option>`).join('')}
       </select></div>`
       : `<div class="fg"><label>Status</label>
       <input type="text" class="fc" value="Aberto" disabled>
@@ -805,6 +824,11 @@ async function saveOS() {
   }
   if (!customerId) return toast('Selecione o cliente.', 'err');
   if (!deviceId) return toast('Selecione o equipamento.', 'err');
+  if (!technicianId) {
+    return toast(techniciansRef.filter((t) => t.active !== false).length
+      ? 'Selecione o técnico responsável pela O.S.'
+      : 'Cadastre um usuário com o perfil Técnico antes de abrir a ordem de serviço.', 'err');
+  }
   if (!isValidPastOrTodayDate(openingDate)) return toast('Data de abertura inválida (não pode ser futura).', 'err');
   if (problemDescription.length < 10) return toast('Descreva o defeito com ao menos 10 caracteres.', 'err');
 

@@ -551,121 +551,56 @@ input.autofilled, select.autofilled { background: #f8fafc; }
 .state-msg i { display: block; font-size: 24px; margin-bottom: 8px; color: var(--text-3, #94a3b8); }
 .btn.is-busy { opacity: .7; pointer-events: none; }
 
-
-/* ─────────────────────────────────────────────────────────────
-   v3.1 — Selects padronizados em toda a aplicação
-   ───────────────────────────────────────────────────────────── */
-
-/* Todos os selects seguem o mesmo padrão visual dos demais campos. */
-select,
-select.fc,
-select.filter-sel {
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  width: 100%;
-  min-height: 42px;
-  padding: 10px 42px 10px 12px;
-  border: 1.5px solid var(--border);
-  border-radius: var(--r-sm);
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.35;
-  color: var(--text);
-  background-color: var(--card);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 13px center;
-  background-size: 14px;
-  cursor: pointer;
-  outline: none;
-  transition: border-color var(--ease), box-shadow var(--ease), background-color var(--ease);
+/* ── Portal do Cliente (consulta pública) ───────────────────── */
+.portal-body { background: var(--bg); }
+.portal-main { max-width: 780px; margin: 0 auto; padding: 24px 16px 48px; }
+.portal-form { display: grid; gap: 14px; padding: 20px; }
+.portal-result { display: grid; gap: 16px; margin-top: 20px; }
+.portal-count { margin: 4px 2px; }
+.portal-card { padding: 18px; }
+.portal-card-hd { display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.portal-card-hd strong { display: block; font-size: 1.05rem; }
+.portal-card-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+.portal-bar { height: 8px; border-radius: 99px; background: var(--accent-light); overflow: hidden; }
+.portal-bar span { display: block; height: 100%; background: var(--primary, #2563eb); border-radius: 99px; }
+.portal-footer { text-align: center; padding: 24px 16px; color: var(--text-2); font-size: .9rem; }
+.portal-footer a { color: inherit; }
+@media (max-width: 600px) {
+  .portal-main { padding: 16px 12px 40px; }
+  .portal-card-hd { flex-direction: column; }
 }
 
-select:hover,
-select.fc:hover,
-select.filter-sel:hover {
-  border-color: #c7d2fe;
+/* ── Dashboard gerencial (gráficos sem biblioteca externa) ──── */
+.rep-filters { flex-wrap: wrap; gap: 10px; }
+.rep-f { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2); }
+.rep-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; margin-top: 18px; }
+.rep-chart { padding: 16px; }
+.rep-title { font-size: 14px; font-weight: 600; margin: 0 0 12px; color: var(--text); }
+.chart-bars { display: grid; gap: 10px; }
+.chart-row { display: grid; grid-template-columns: 130px 1fr 42px; align-items: center; gap: 10px; font-size: 13px; }
+.chart-lbl { color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chart-track { height: 10px; border-radius: 99px; background: var(--accent-light); overflow: hidden; }
+.chart-fill { display: block; height: 100%; border-radius: 99px; background: #2563eb; }
+.chart-num { text-align: right; color: var(--text); }
+.chart-cols { display: flex; align-items: flex-end; gap: 10px; height: 200px; overflow-x: auto; padding-top: 8px; }
+.chart-col { flex: 1 0 46px; display: flex; flex-direction: column; align-items: center;
+  justify-content: flex-end; height: 100%; gap: 4px; }
+.chart-col-bar { width: 100%; max-width: 42px; border-radius: 6px 6px 0 0; background: #2563eb; }
+.chart-col-num { font-size: 12px; font-weight: 600; color: var(--text); }
+.chart-col-lbl { font-size: 11px; color: var(--text-2); white-space: nowrap; }
+@media (max-width: 600px) {
+  .chart-row { grid-template-columns: 96px 1fr 36px; }
 }
 
-select:focus,
-select.fc:focus,
-select.filter-sel:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(99,102,241,.12);
-}
-
-select:disabled,
-select.fc:disabled,
-select.filter-sel:disabled {
-  opacity: .65;
-  background-color: #f8fafc;
-  color: var(--text-3);
-  cursor: not-allowed;
-}
-
-select option {
-  font-family: inherit;
-  font-size: 14px;
-  color: #0f172a;
-  background: #fff;
-}
-
-select option:checked {
-  font-weight: 600;
-}
-
-/* Selects que aparecem lado a lado em toolbars preservam largura adequada. */
-.toolbar select.filter-sel {
-  width: auto;
-  min-width: 180px;
-  max-width: 280px;
-}
-
-/* Select dentro de campos mantém largura total. */
-.fg select.fc {
-  width: 100%;
-}
-
-/* Dark mode */
-:root[data-theme="dark"] select,
-:root[data-theme="dark"] select.fc,
-:root[data-theme="dark"] select.filter-sel {
-  color: var(--text);
-  background-color: var(--card);
-  border-color: var(--border);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-}
-
-:root[data-theme="dark"] select:hover,
-:root[data-theme="dark"] select.fc:hover,
-:root[data-theme="dark"] select.filter-sel:hover {
-  border-color: #4f46e5;
-}
-
-:root[data-theme="dark"] select:disabled,
-:root[data-theme="dark"] select.fc:disabled,
-:root[data-theme="dark"] select.filter-sel:disabled {
-  background-color: #0f1830;
-}
-
-:root[data-theme="dark"] select option {
-  color: #e2e8f0;
-  background: #111a2e;
-}
-
-/* Mobile: área de toque confortável e toolbar em largura total. */
-@media (max-width: 768px) {
-  select,
-  select.fc,
-  select.filter-sel {
-    min-height: 44px;
-    font-size: 16px;
-  }
-
-  .toolbar select.filter-sel {
-    width: 100%;
-    max-width: none;
-  }
-}
+/* ── Notificações do painel da plataforma ───────────────────── */
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 18px 0 6px; }
+.tab-btn { border: 1px solid var(--border); background: var(--card); color: var(--text-2);
+  padding: 8px 14px; border-radius: 99px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.tab-btn[aria-selected="true"] { background: #2563eb; border-color: #2563eb; color: #fff; }
+.tab-badge { display: inline-block; min-width: 20px; padding: 0 6px; margin-left: 6px;
+  border-radius: 99px; background: #dc2626; color: #fff; font-size: 11px; line-height: 18px; text-align: center; }
+.tab-btn[aria-selected="true"] .tab-badge { background: rgba(255,255,255,.28); }
+.notif-item { border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 12px; background: var(--card); }
+.notif-hd { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: center; }
+.notif-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
