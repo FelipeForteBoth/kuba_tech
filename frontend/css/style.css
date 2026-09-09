@@ -604,3 +604,29 @@ input.autofilled, select.autofilled { background: #f8fafc; }
 .notif-item { border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 12px; background: var(--card); }
 .notif-hd { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: center; }
 .notif-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
+/* ─────────────────────────────────────────────────────────────
+   Painel de notificações da plataforma — os cartões de
+   solicitação são sempre visíveis (não são o modo card da
+   tabela de assinatura, que fica oculto em telas grandes).
+   ───────────────────────────────────────────────────────────── */
+#painel-notificacoes .pay-cards { display: grid !important; gap: 12px; }
+
+/* Padronização dos seletores nativos (evita o visual "cru" do
+   navegador em selects sem classe). */
+select, select.fc, select.filter-sel, .toolbar select, .fg select {
+  -webkit-appearance: none; -moz-appearance: none; appearance: none;
+  padding-right: 34px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%2364748b'><path d='M5.5 7.5 10 12l4.5-4.5z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 16px 16px;
+}
+select:not(.fc):not(.filter-sel) {
+  width: 100%; padding: 10px 34px 10px 12px;
+  border: 1.5px solid var(--border); border-radius: var(--r-sm);
+  font-family: inherit; font-size: 14px;
+  color: var(--text); background-color: var(--card); cursor: pointer; outline: none;
+  transition: border-color var(--ease), box-shadow var(--ease);
+}
+select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(99,102,241,.12); }

@@ -14,9 +14,9 @@ router.use(authenticate, tenantScope);
 
 router.get('/subscription', asyncHandler(controller.subscription));
 router.get('/plans', asyncHandler(controller.plans));
-router.get('/payments', asyncHandler(controller.payments));
 router.get('/requests', asyncHandler(controller.requests));
-router.post('/renewal-request', onlyAdmin, asyncHandler(controller.requestRenewal));
-router.put('/plan', onlyAdmin, asyncHandler(controller.changePlan));
+
+// Solicitação comercial de alteração de plano (tratada pela Kuba Tech).
+router.post('/change-request', onlyAdmin, asyncHandler(controller.requestChange));
 
 module.exports = router;

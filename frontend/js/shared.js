@@ -370,6 +370,46 @@ const THEME_CSS = `
 :root[data-theme="dark"] input[type="date"],
 :root[data-theme="dark"] input[type="time"],
 :root[data-theme="dark"] input[type="number"] { color-scheme: dark; }
+/* Superfícies que ainda usavam branco fixo */
+:root[data-theme="dark"] .pay-card,
+:root[data-theme="dark"] .plan-card,
+:root[data-theme="dark"] .os-card,
+:root[data-theme="dark"] .modal-box,
+:root[data-theme="dark"] .card,
+:root[data-theme="dark"] .rep-card,
+:root[data-theme="dark"] .dash-card {
+  background: var(--card) !important; color: var(--text) !important; border-color: var(--border) !important;
+}
+:root[data-theme="dark"] .modal-hd,
+:root[data-theme="dark"] .modal-ft { border-color: var(--border) !important; }
+:root[data-theme="dark"] tbody tr { background: var(--card) !important; }
+:root[data-theme="dark"] tbody tr:hover { background: #1b2540 !important; }
+:root[data-theme="dark"] .search-input,
+:root[data-theme="dark"] .btn-sort,
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] textarea { background-color: #0f1830 !important; color: var(--text) !important; border-color: var(--border) !important; }
+:root[data-theme="dark"] select { background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%2394a3b8'><path d='M5.5 7.5 10 12l4.5-4.5z'/></svg>") !important; }
+:root[data-theme="dark"] option { background: #0f1830; color: var(--text); }
+:root[data-theme="dark"] .fc:disabled,
+:root[data-theme="dark"] input.autofilled,
+:root[data-theme="dark"] select.autofilled { background-color: #16203a !important; color: var(--text-2) !important; }
+:root[data-theme="dark"] .pay-card p span,
+:root[data-theme="dark"] .plan-desc,
+:root[data-theme="dark"] .plan-price span,
+:root[data-theme="dark"] .muted,
+:root[data-theme="dark"] .hint,
+:root[data-theme="dark"] small { color: var(--text-2) !important; }
+:root[data-theme="dark"] .badge-todo { background: #1e293b !important; color: #cbd5e1 !important; }
+:root[data-theme="dark"] .badge-prog { background: #3b2f10 !important; color: #fbbf24 !important; }
+:root[data-theme="dark"] .badge-done { background: #10331f !important; color: #4ade80 !important; }
+:root[data-theme="dark"] .badge-del  { background: #3b1620 !important; color: #fca5a5 !important; }
+:root[data-theme="dark"] .badge { filter: none; }
+:root[data-theme="dark"] .stat-ico,
+:root[data-theme="dark"] .icon-box { background: #1b2540 !important; }
+:root[data-theme="dark"] .btn-ghost:hover { background: #1b2540 !important; color: var(--text) !important; }
+:root[data-theme="dark"] .tab-btn[aria-selected="true"] { background: #2563eb !important; border-color: #2563eb !important; color: #fff !important; }
+
 /* A assinatura é sempre capturada em fundo branco (documento legal) */
 :root[data-theme="dark"] .assinatura-canvas,
 :root[data-theme="dark"] .assinatura-img { background: #ffffff !important; }
