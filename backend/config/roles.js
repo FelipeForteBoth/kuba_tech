@@ -21,6 +21,7 @@ const TENANT_ROLES = [ROLES.COMPANY_ADMIN, ROLES.ATTENDANT, ROLES.TECHNICIAN, RO
 // ── Esteira da Ordem de Serviço (v2 — atendimento interno e externo) ──
 const OS_STATUS = [
   'Aberto',
+  'Ag. Execução',
   'Agendado',
   'Em deslocamento',
   'No local',
@@ -32,6 +33,8 @@ const OS_STATUS = [
 ];
 
 const OS_INITIAL_STATUS = 'Aberto';
+// A O.S. interna não passa por agendamento: nasce aguardando execução.
+const OS_INTERNAL_INITIAL_STATUS = 'Ag. Execução';
 const OS_SCHEDULED_STATUS = 'Agendado';
 const OS_IN_PROGRESS_STATUS = 'Em execução';
 const OS_CLOSED_STATUS = ['Finalizado', 'Entregue', 'Cancelado'];
@@ -39,6 +42,7 @@ const OS_CLOSED_STATUS = ['Finalizado', 'Entregue', 'Cancelado'];
 // Transições permitidas (o backend recusa qualquer salto fora do fluxo).
 const OS_TRANSITIONS = {
   'Aberto': ['Agendado', 'Cancelado'],
+  'Ag. Execução': ['Em execução', 'Cancelado'],
   'Agendado': ['Em deslocamento', 'Em execução', 'Aguardando cliente', 'Cancelado', 'Aberto'],
   'Em deslocamento': ['No local', 'Aguardando cliente', 'Cancelado'],
   'No local': ['Em execução', 'Aguardando cliente', 'Cancelado'],
@@ -53,21 +57,32 @@ const OS_TRANSITIONS = {
 const SERVICE_TYPES = ['interno', 'externo'];
 
 // A O.S. INTERNA é executada na própria assistência: não existe
-// deslocamento da equipe nem espera no local do cliente.
-const OS_INTERNAL_BLOCKED_STATUS = ['Em deslocamento', 'No local', 'Aguardando cliente'];
+// agendamento, deslocamento da equipe nem espera no local do cliente.
+const OS_INTERNAL_BLOCKED_STATUS = ['Em deslocamento', 'No local', 'Aguardando cliente', 'Aberto', 'Agendado'];
+// "Ag. Execução" existe apenas no fluxo interno.
+const OS_EXTERNAL_BLOCKED_STATUS = ['Ag. Execução'];
+
+/** Status inicial conforme o tipo de atendimento. */
+function osInitialStatusFor(serviceType) {
+  return serviceType === 'interno' ? OS_INTERNAL_INITIAL_STATUS : OS_INITIAL_STATUS;
+}
+
+/** Status bloqueados para o tipo de atendimento informado. */
+function osBlockedStatusFor(serviceType) {
+  return serviceType === 'interno' ? OS_INTERNAL_BLOCKED_STATUS : OS_EXTERNAL_BLOCKED_STATUS;
+}
 
 /** Status válidos para o tipo de atendimento informado. */
 function osStatusesFor(serviceType) {
-  return serviceType === 'interno'
-    ? OS_STATUS.filter((s) => !OS_INTERNAL_BLOCKED_STATUS.includes(s))
-    : OS_STATUS;
+  const bloqueados = osBlockedStatusFor(serviceType);
+  return OS_STATUS.filter((s) => !bloqueados.includes(s));
 }
 
 /** Transições permitidas a partir de um status, respeitando o tipo de atendimento. */
 function osTransitionsFor(serviceType, status) {
   const permitidas = OS_TRANSITIONS[status] || [];
-  if (serviceType !== 'interno') return permitidas;
-  return permitidas.filter((s) => !OS_INTERNAL_BLOCKED_STATUS.includes(s));
+  const bloqueados = osBlockedStatusFor(serviceType);
+  return permitidas.filter((s) => !bloqueados.includes(s));
 }
 
 // Diagnóstico do encerramento (regra das evidências fotográficas).
@@ -109,11 +124,14 @@ module.exports = {
   TENANT_ROLES,
   OS_STATUS,
   OS_INITIAL_STATUS,
+  OS_INTERNAL_INITIAL_STATUS,
   OS_SCHEDULED_STATUS,
   OS_IN_PROGRESS_STATUS,
   OS_CLOSED_STATUS,
   OS_TRANSITIONS,
   OS_INTERNAL_BLOCKED_STATUS,
+  OS_EXTERNAL_BLOCKED_STATUS,
+  osInitialStatusFor,
   osStatusesFor,
   osTransitionsFor,
   SERVICE_TYPES,

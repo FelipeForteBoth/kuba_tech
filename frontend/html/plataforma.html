@@ -90,11 +90,20 @@
     <section id="painel-notificacoes" role="tabpanel" aria-labelledby="tab-notificacoes" hidden>
       <p class="page-sub">Solicitações enviadas pelas empresas contratantes. Nenhuma senha é exibida aqui.</p>
 
+      <div class="tabs" role="tablist" aria-label="Situação das solicitações">
+        <button class="tab-btn" id="sub-ativas" role="tab" aria-selected="true">
+          <i class="fas fa-inbox"></i> Ativas
+        </button>
+        <button class="tab-btn" id="sub-arquivadas" role="tab" aria-selected="false">
+          <i class="fas fa-box-archive"></i> Arquivadas
+        </button>
+      </div>
+
       <h2 class="section-title" id="tit-solic">Solicitações de alteração de plano</h2>
       <div class="toolbar">
         <div class="f" style="max-width:280px;">
           <label class="sr-only" for="filtro-solic">Filtrar por situação</label>
-          <select id="filtro-solic">
+          <select class="fc" id="filtro-solic">
             <option value="">Todas as situações</option>
             <option value="pending">Aguardando análise</option>
             <option value="in_service">Em atendimento</option>

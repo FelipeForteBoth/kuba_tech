@@ -96,7 +96,7 @@ const metrics = () =>
   );
 
 // ── Solicitações de alteração de plano (fluxo comercial manual) ──────
-const listPlanRequests = (status) =>
+const listPlanRequests = (status, archived = false) =>
   db.all(
     `SELECT r.*, t.company_name, t.email AS company_email,
             pc.name AS current_plan_name, pd.name AS desired_plan_name
@@ -105,9 +105,18 @@ const listPlanRequests = (status) =>
   LEFT JOIN plans pc ON pc.id = r.current_plan_id
   LEFT JOIN plans pd ON pd.id = r.desired_plan_id
       WHERE ($1 = '' OR r.status = $1)
+        AND (($2 AND r.archived_at IS NOT NULL) OR (NOT $2 AND r.archived_at IS NULL))
       ORDER BY (r.status = 'pending') DESC, r.created_at DESC
       LIMIT 100`,
-    [status || ''],
+    [status || '', Boolean(archived)],
+  );
+
+/** Arquiva uma solicitação já concluída ou recusada. */
+const archivePlanRequest = (id) =>
+  db.one(
+    `UPDATE plan_change_requests SET archived_at = NOW(), updated_at = NOW()
+      WHERE id = $1 AND status IN ('done','rejected') AND archived_at IS NULL RETURNING *`,
+    [id],
   );
 
 const findPlanRequest = (id) =>
@@ -135,6 +144,7 @@ const updatePlanRequest = (id, { status, answer, decidedBy }) =>
 module.exports = {
   expireSuspended,
   listPlanRequests,
+  archivePlanRequest,
   findPlanRequest,
   updatePlanRequest,
   listTenants,

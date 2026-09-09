@@ -682,11 +682,12 @@ function esc(value) {
 
 
 // ── ESTEIRA DA ORDEM DE SERVIÇO (v2) ──
-const OS_STATUS = ['Aberto', 'Agendado', 'Em deslocamento', 'No local', 'Em execução',
+const OS_STATUS = ['Aberto', 'Ag. Execução', 'Agendado', 'Em deslocamento', 'No local', 'Em execução',
   'Aguardando cliente', 'Finalizado', 'Entregue', 'Cancelado'];
 
 const OS_STATUS_CLASS = {
   Aberto: 'badge-todo',
+  'Ag. Execução': 'badge-todo',
   Agendado: 'badge-prog',
   'Em deslocamento': 'badge-prog',
   'No local': 'badge-prog',
@@ -784,11 +785,14 @@ async function runAction(btn, fn, textoOcupado = 'Aguarde...') {
 /** Escreve uma dica logo abaixo do campo (loading / ok / erro). */
 function fieldHint(input, texto, tipo = '') {
   if (!input) return;
-  let hint = input.parentElement.querySelector('.hint-lookup');
+  // A dica vai no grupo do campo (.fg) para não disputar espaço com o
+  // input quando ele está dentro de uma linha horizontal (.inline-row).
+  const alvo = input.closest('.fg') || input.parentElement;
+  let hint = alvo.querySelector('.hint-lookup');
   if (!hint) {
     hint = document.createElement('small');
     hint.className = 'hint-lookup';
-    input.parentElement.appendChild(hint);
+    alvo.appendChild(hint);
   }
   hint.className = `hint-lookup ${tipo}`;
   hint.innerHTML = texto ? (tipo === 'loading' ? '<i class="fas fa-spinner fa-spin"></i> ' : '') + esc(texto) : '';

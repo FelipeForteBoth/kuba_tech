@@ -12,9 +12,10 @@ const cloudinary = require('../../shared/cloudinary');
 const { geocode, buildAddress } = require('../../shared/geo');
 const {
   ROLES,
+  ROLE_LABELS,
   OS_STATUS,
-  OS_INITIAL_STATUS,
   OS_CLOSED_STATUS,
+  osInitialStatusFor,
   osTransitionsFor,
   osStatusesFor,
   OS_INTERNAL_BLOCKED_STATUS,
@@ -91,8 +92,14 @@ function optionalText(value, max = 255) {
 
 /** Endereço do atendimento externo (ViaCEP no front + geocodificação aqui). */
 async function resolveLocation(req, body, current) {
-  const serviceType = String(body.serviceType || (current && current.service_type) || 'interno').trim();
+  // O tipo de atendimento é definido na abertura e não pode ser trocado depois.
+  const serviceType = current
+    ? String(current.service_type || 'interno').trim()
+    : String(body.serviceType || 'interno').trim();
   if (!SERVICE_TYPES.includes(serviceType)) throw new AppError('Selecione o tipo de atendimento (interno ou externo).');
+  if (current && body.serviceType && String(body.serviceType).trim() !== serviceType) {
+    throw new AppError('O tipo de atendimento (interno/externo) não pode ser alterado após a abertura da O.S.');
+  }
 
   if (serviceType === 'interno') {
     return {
@@ -136,18 +143,16 @@ async function validatePayload(req, current = null) {
   const technicianId = String(req.body.technicianId || '').trim() || null;
   const openingDate = String(req.body.openingDate || '').trim();
   const problemDescription = String(req.body.problemDescription || '').trim();
-  const solution = String(req.body.solution || '').trim() || null;
-  // Toda O.S. nasce Aberta; na edição o status atual é preservado.
-  const status = current ? String(req.body.status || current.status).trim() : OS_INITIAL_STATUS;
+  // A solução aplicada só é escrita na finalização da O.S.
+  const solution = null;
 
-  // SLA: usa o prazo padrão da empresa (48h de fábrica) quando não informado.
-  let slaHours;
-  if (req.body.slaHours === undefined || req.body.slaHours === null || req.body.slaHours === '') {
-    const settings = await companyModel.findSettings(req.tenantId);
-    slaHours = (current && Number(current.sla_hours)) || Number(settings && settings.sla_hours) || 48;
-  } else {
-    slaHours = parseSlaHours(req.body.slaHours);
-  }
+  // O prazo (SLA) nunca é definido na abertura: vale o padrão da empresa.
+  // Somente o Administrador da Empresa altera o prazo, na edição.
+  const settings = await companyModel.findSettings(req.tenantId);
+  const padrao = (current && Number(current.sla_hours)) || Number(settings && settings.sla_hours) || 48;
+  const podeAjustarSla = Boolean(current) && req.user.role === ROLES.COMPANY_ADMIN;
+  const informouSla = req.body.slaHours !== undefined && req.body.slaHours !== null && req.body.slaHours !== '';
+  const slaHours = podeAjustarSla && informouSla ? parseSlaHours(req.body.slaHours) : padrao;
 
   if (!isValidUUID(customerId)) throw new AppError('Selecione o cliente da ordem de serviço.');
   if (!isValidUUID(deviceId)) throw new AppError('Selecione o equipamento da ordem de serviço.');
@@ -157,8 +162,6 @@ async function validatePayload(req, current = null) {
   if (!isValidUUID(technicianId)) throw new AppError('Técnico inválido.');
   if (!isValidPastOrTodayDate(openingDate)) throw new AppError('Data de abertura inválida. Não pode ser futura.');
   if (!isNonEmptyText(problemDescription, 10)) throw new AppError('Descreva o problema com pelo menos 10 caracteres.');
-  if (!OS_STATUS.includes(status)) throw new AppError('Status inválido.');
-
   const customer = await customerModel.findById(req.tenantId, customerId);
   if (!customer) throw new AppError('Cliente não encontrado nesta empresa.', 404);
 
@@ -173,7 +176,13 @@ async function validatePayload(req, current = null) {
 
   const location = await resolveLocation(req, req.body, current);
 
-  // A O.S. interna não possui etapas de deslocamento.
+  // A O.S. interna nasce "Ag. Execução" (sem agendamento);
+  // a externa nasce "Aberto" e segue para o agendamento.
+  const status = current
+    ? String(req.body.status || current.status).trim()
+    : osInitialStatusFor(location.serviceType);
+
+  if (!OS_STATUS.includes(status)) throw new AppError('Status inválido.');
   if (!osStatusesFor(location.serviceType).includes(status)) {
     throw new AppError(`O status "${status}" não se aplica ao atendimento ${location.serviceType}.`);
   }
@@ -187,9 +196,10 @@ async function validatePayload(req, current = null) {
 async function store(req, res) {
   const data = await validatePayload(req);
   const created = await model.create(req.tenantId, { ...data, createdBy: req.user.id });
+  const autor = `${req.user.name} - ${ROLE_LABELS[req.user.role] || req.user.role}`;
   await assets.logHistory(
     req.tenantId, created.id, req.user.id, 'criacao',
-    `O.S. #${created.number} aberta (atendimento ${data.serviceType}).`,
+    `O.S. #${created.number} aberta por ${autor} (atendimento ${data.serviceType}).`,
   );
   res.status(201).json(await model.findById(req.tenantId, created.id));
 }
@@ -221,6 +231,10 @@ async function schedule(req, res) {
   if (OS_CLOSED_STATUS.includes(order.status)) {
     throw new AppError('Esta ordem de serviço já foi encerrada.');
   }
+  if (order.service_type !== 'externo') {
+    throw new AppError('A ordem de serviço interna não passa por agendamento: ela já nasce aguardando execução.');
+  }
+
 
   // Desmarcar devolve a O.S. para a fila de agendamento.
   if (req.body.scheduledAt === null || String(req.body.scheduledAt || '').trim() === '') {
@@ -367,16 +381,10 @@ async function addPhotos(req, res) {
   res.status(201).json({ fotos: saved, total: current + saved.length, max: PHOTOS_MAX });
 }
 
-async function removePhoto(req, res) {
-  const order = await loadOrder(req);
-  if (!isValidUUID(req.params.imageId)) throw new AppError('Identificador inválido.');
-  const image = await assets.findImage(req.tenantId, order.id, req.params.imageId);
-  if (!image) throw new AppError('Foto não encontrada.', 404);
-
-  await assets.removeImage(req.tenantId, image.id);
-  await cloudinary.destroy(image.public_id);
-  await assets.logHistory(req.tenantId, order.id, req.user.id, 'fotos', 'Evidência fotográfica removida.');
-  res.json({ message: 'Foto removida.' });
+// As evidências fotográficas são prova do atendimento: uma vez anexadas,
+// não podem ser excluídas por nenhum perfil.
+async function removePhoto() {
+  throw new AppError('As fotos anexadas à ordem de serviço não podem ser excluídas.', 403);
 }
 
 // ── Assinatura digital (módulo digital-signature) ──
