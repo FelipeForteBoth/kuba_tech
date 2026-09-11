@@ -25,5 +25,6 @@ router.put('/password', authenticate, asyncHandler(controller.changePassword));
 router.get('/password-requests', authenticate, asyncHandler(reset.list));
 router.post('/password-requests/:id/approve', authenticate, asyncHandler(reset.approve));
 router.post('/password-requests/:id/reject', authenticate, asyncHandler(reset.reject));
+router.post('/password-requests/:id/archive', authenticate, asyncHandler(reset.archive));
 
 module.exports = router;

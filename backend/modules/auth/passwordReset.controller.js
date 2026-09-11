@@ -18,10 +18,12 @@ const mailer = require('../../shared/mailer');
 const { AppError } = require('../../shared/http');
 const { ROLES } = require('../../config/roles');
 const { isValidEmail, isValidPassword, isValidUUID } = require('../../shared/validators');
-const { resetUrl, panelUrl } = require('../../shared/appUrl');
+const { resetUrl, panelUrl, loginUrl } = require('../../shared/appUrl');
 
 const SALT_ROUNDS = 10;
 const TOKEN_TTL_HOURS = 1;
+// Senha temporária padrão devolvida ao usuário quando o pedido é aprovado.
+const TEMP_PASSWORD = '123456';
 
 const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
 
@@ -89,11 +91,34 @@ async function forgot(req, res) {
 // GET /api/auth/password-requests  (aprovador autenticado)
 async function list(req, res) {
   const status = String(req.query.status || '').trim();
+  const archived = ['1', 'true'].includes(String(req.query.archived || '').toLowerCase());
   if (req.user.role === ROLES.PLATFORM_ADMIN) {
-    return res.json((await model.listForPlatform(status)).map(withLabel));
+    return res.json((await model.listForPlatform(status, archived)).map(withLabel));
   }
   if (req.user.role !== ROLES.COMPANY_ADMIN) throw new AppError('Acesso negado para o seu perfil.', 403);
-  res.json((await model.listForCompany(req.user.tenantId, status)).map(withLabel));
+  res.json((await model.listForCompany(req.user.tenantId, status, archived)).map(withLabel));
+}
+
+// POST /api/auth/password-requests/:id/archive — tira o pedido já
+// decidido da fila ativa, mantendo-o na sub-aba de arquivados.
+async function archive(req, res) {
+  if (!isValidUUID(req.params.id)) throw new AppError('Identificador inválido.');
+  const pedido = await model.findById(req.params.id);
+  if (!pedido) throw new AppError('Solicitação não encontrada.', 404);
+  if (pedido.status === 'pending') throw new AppError('Só é possível arquivar solicitações já decididas.');
+
+  if (req.user.role === ROLES.PLATFORM_ADMIN) {
+    if (pedido.approver_scope !== ROLES.PLATFORM_ADMIN) throw new AppError('Solicitação de outra alçada.', 403);
+  } else if (req.user.role === ROLES.COMPANY_ADMIN) {
+    if (pedido.approver_scope !== ROLES.COMPANY_ADMIN || pedido.tenant_id !== req.user.tenantId) {
+      throw new AppError('Solicitação de outra alçada.', 403);
+    }
+  } else {
+    throw new AppError('Acesso negado para o seu perfil.', 403);
+  }
+
+  await model.archive(pedido.id);
+  res.json({ message: 'Solicitação arquivada.' });
 }
 
 /** Garante que o aprovador logado pode decidir sobre a solicitação. */
@@ -116,31 +141,31 @@ async function carregarParaDecisao(req) {
 }
 
 // POST /api/auth/password-requests/:id/approve
+//
+// Aprovar devolve a senha do usuário para a senha temporária padrão
+// (123456) e obriga o cadastro de uma nova senha no próximo acesso.
 async function approve(req, res) {
   const pedido = await carregarParaDecisao(req);
 
-  const token = crypto.randomBytes(32).toString('hex');
-  const expiresAt = new Date(Date.now() + TOKEN_TTL_HOURS * 3600 * 1000);
   await model.approve(pedido.id, {
-    tokenHash: hashToken(token),
-    expiresAt,
+    tokenHash: null,
+    expiresAt: null,
     decidedBy: req.user.id,
   });
+  await model.setTemporaryPassword(pedido.user_id, await bcrypt.hash(TEMP_PASSWORD, SALT_ROUNDS));
 
-  const link = resetUrl(token);
   const email = await mailer.sendTemplate('recuperacaoAprovada', pedido.user_email, {
     name: pedido.user_name,
-    resetUrl: link,
+    resetUrl: loginUrl(),
+    tempPassword: TEMP_PASSWORD,
     expiresInHours: TOKEN_TTL_HOURS,
   }, pedido.tenant_id);
 
   res.json({
     message: email.sent
-      ? 'Solicitação aprovada. O link de redefinição foi enviado ao usuário.'
-      : 'Solicitação aprovada. Repasse o link abaixo ao usuário (o envio de e-mail não está configurado).',
-    // O link só é devolvido quando o e-mail não pôde ser enviado.
-    link: email.sent ? undefined : link,
-    expiraEm: expiresAt,
+      ? `Solicitação aprovada. A senha voltou para ${TEMP_PASSWORD} e o usuário foi avisado por e-mail.`
+      : `Solicitação aprovada. Informe ao usuário que a senha voltou para ${TEMP_PASSWORD}.`,
+    senhaTemporaria: TEMP_PASSWORD,
   });
 }
 
@@ -182,4 +207,4 @@ async function reset(req, res) {
   res.json({ message: 'Senha redefinida com sucesso. Faça login com a nova senha.' });
 }
 
-module.exports = { forgot, list, approve, reject, checkToken, reset, STATUS_LABEL };
+module.exports = { forgot, list, approve, reject, archive, checkToken, reset, STATUS_LABEL };

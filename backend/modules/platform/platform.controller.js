@@ -150,8 +150,21 @@ async function emails(req, res) {
 /** GET /plan-requests — pedidos enviados pelas empresas contratantes. */
 async function planRequests(req, res) {
   const status = String(req.query.status || '').trim();
-  const lista = await model.listPlanRequests(status);
+  const archived = ['1', 'true'].includes(String(req.query.archived || '').toLowerCase());
+  const lista = await model.listPlanRequests(status, archived);
   res.json(lista.map((r) => ({ ...r, status_label: PLAN_REQUEST_LABEL[r.status] || r.status })));
+}
+
+/** PATCH /plan-requests/:id/archive — tira da fila ativa após concluída. */
+async function archivePlanRequest(req, res) {
+  if (!isValidUUID(req.params.id)) throw new AppError('Identificador inválido.');
+  const atual = await model.findPlanRequest(req.params.id);
+  if (!atual) throw new AppError('Solicitação não encontrada.', 404);
+  if (!['done', 'rejected'].includes(atual.status)) {
+    throw new AppError('Só é possível arquivar solicitações concluídas ou recusadas.');
+  }
+  await model.archivePlanRequest(atual.id);
+  res.json({ message: 'Solicitação arquivada.' });
 }
 
 /** PATCH /plan-requests/:id — registra o andamento e avisa a empresa. */
@@ -163,6 +176,12 @@ async function updatePlanRequest(req, res) {
 
   const atual = await model.findPlanRequest(req.params.id);
   if (!atual) throw new AppError('Solicitação não encontrada.', 404);
+  // Concluída é ponto final: resta apenas visualizar ou arquivar.
+  if (atual.status === 'done') {
+    throw new AppError('Esta solicitação já foi concluída e não pode mais ser alterada.', 409);
+  }
+  if (atual.archived_at) throw new AppError('Esta solicitação está arquivada.', 409);
+
 
   // Concluir o pedido aplica o plano desejado à empresa.
   if (status === 'done' && atual.desired_plan_id) {
@@ -215,5 +234,5 @@ async function metrics(_req, res) {
 
 module.exports = {
   tenants, tenant, store, destroy, updateStatus, changePlan, plans, modules, metrics,
-  emails, planRequests, updatePlanRequest, PLAN_REQUEST_LABEL,
+  emails, planRequests, updatePlanRequest, archivePlanRequest, PLAN_REQUEST_LABEL,
 };

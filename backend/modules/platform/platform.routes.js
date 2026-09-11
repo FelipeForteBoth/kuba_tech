@@ -15,6 +15,7 @@ router.get('/plans', asyncHandler(controller.plans));
 router.get('/modules', asyncHandler(controller.modules));
 router.get('/plan-requests', asyncHandler(controller.planRequests));
 router.patch('/plan-requests/:id', asyncHandler(controller.updatePlanRequest));
+router.patch('/plan-requests/:id/archive', asyncHandler(controller.archivePlanRequest));
 router.get('/tenants', asyncHandler(controller.tenants));
 router.post('/tenants', asyncHandler(controller.store));
 router.get('/tenants/:id', asyncHandler(controller.tenant));

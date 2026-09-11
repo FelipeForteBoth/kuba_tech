@@ -50,10 +50,11 @@ body {
 }
 .brand-icon {
   width: 32px; height: 32px;
-  background: var(--accent); border-radius: 8px;
+  background: var(--accent); border-radius: 9px; overflow: hidden;
   display: flex; align-items: center; justify-content: center;
   font-size: 15px;
 }
+.brand-icon img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 9px; }
 #menu-btn {
   background: none; border: none;
   color: var(--text-3); font-size: 18px;
@@ -373,8 +374,10 @@ tbody tr:hover .rarrow { transform: translateX(3px); color: var(--accent); }
 
 /* ── Evolução v2: documentos, evidências, assinatura e auditoria ── */
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.inline-row { display: flex; gap: 8px; align-items: center; }
-.inline-row .fc { flex: 1; }
+.inline-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.inline-row .fc { flex: 1 1 200px; min-width: 0; }
+.inline-row .btn { flex: 0 0 auto; }
+.inline-row .hint-lookup { flex: 1 1 100%; }
 .radio-row { display: flex; gap: 16px; flex-wrap: wrap; }
 .radio-opt { display: flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer; }
 

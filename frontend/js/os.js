@@ -19,6 +19,7 @@ const FOTOS_MAX = 15;
 // Transições permitidas (espelham o backend).
 const TRANSICOES = {
   Aberto: ['Cancelado'],
+  'Ag. Execução': ['Em execução', 'Cancelado'],
   Agendado: ['Em deslocamento', 'Em execução', 'Aguardando cliente', 'Cancelado'],
   'Em deslocamento': ['No local', 'Aguardando cliente', 'Cancelado'],
   'No local': ['Em execução', 'Aguardando cliente', 'Cancelado'],
@@ -29,20 +30,33 @@ const TRANSICOES = {
   Cancelado: [],
 };
 
-// A O.S. INTERNA é executada na própria assistência: não existem etapas
-// de deslocamento, chegada ao local nem espera pelo cliente no local.
-const STATUS_SO_EXTERNO = ['Em deslocamento', 'No local', 'Aguardando cliente'];
+// A O.S. INTERNA é executada na própria assistência: não existe agendamento,
+// deslocamento, chegada ao local nem espera pelo cliente no local.
+const STATUS_SO_EXTERNO = ['Em deslocamento', 'No local', 'Aguardando cliente', 'Aberto', 'Agendado'];
+const STATUS_SO_INTERNO = ['Ag. Execução'];
+
+/** Status bloqueados conforme o tipo de atendimento. */
+function bloqueadosPara(serviceType) {
+  return serviceType === 'externo' ? STATUS_SO_INTERNO : STATUS_SO_EXTERNO;
+}
 
 /** Status válidos conforme o tipo de atendimento. */
 function statusPara(serviceType) {
-  return serviceType === 'externo' ? STATUS : STATUS.filter((s) => !STATUS_SO_EXTERNO.includes(s));
+  const bloqueados = bloqueadosPara(serviceType);
+  return STATUS.filter((s) => !bloqueados.includes(s));
 }
 
 /** Próximos status possíveis, respeitando o tipo de atendimento. */
 function transicoesDe(o) {
-  const opcoes = TRANSICOES[o.status] || [];
-  if (o.service_type === 'externo') return opcoes;
-  return opcoes.filter((s) => !STATUS_SO_EXTERNO.includes(s));
+  const bloqueados = bloqueadosPara(o.service_type);
+  return (TRANSICOES[o.status] || []).filter((s) => !bloqueados.includes(s));
+}
+
+/** Rótulo de quem abriu a O.S.: "Nome - Cargo". */
+function autorOS(o) {
+  if (!o.created_by_name) return '—';
+  const cargo = (typeof ROLE_LABELS !== 'undefined' && ROLE_LABELS[o.created_by_role]) || '';
+  return cargo ? `${o.created_by_name} - ${cargo}` : o.created_by_name;
 }
 
 const temFotos = () => hasModule('service-order-photos');
@@ -241,7 +255,7 @@ async function viewOS(id) {
       <div class="d-val">${esc(sla.rotulo)}: ${o.sla_due_at ? fmtDateTime(o.sla_due_at) : '—'}
         <span class="badge ${sla.cls}">${esc(sla.texto)}</span></div></div>
     <div class="d-field"><div class="d-lbl">Técnico Responsável</div><div class="d-val">${esc(o.technician_name || 'Não atribuído')}</div></div>
-    <div class="d-field"><div class="d-lbl">Aberta por</div><div class="d-val">${esc(o.created_by_name || '—')}</div></div>
+    <div class="d-field"><div class="d-lbl">Aberta por</div><div class="d-val">${esc(autorOS(o))}</div></div>
 
     ${o.service_type === 'externo' ? `
     <div class="d-divider"></div>
@@ -265,6 +279,7 @@ async function viewOS(id) {
     <div id="historico"><span class="stat-lbl">Carregando histórico...</span></div>`;
 
   const acoes = [];
+  acoes.push(`<button class="btn btn-ghost btn-sm" onclick="exportarPDF('${o.id}')"><i class="fas fa-file-pdf"></i> Exportar PDF</button>`);
   if (canDelete()) acoes.push(`<button class="btn btn-del btn-sm" onclick="deleteOS('${o.id}')"><i class="fas fa-trash"></i> Excluir</button>`);
   if (can('orders')) acoes.push(`<button class="btn btn-ghost btn-sm" onclick="editOS('${o.id}')"><i class="fas fa-edit"></i> Editar</button>`);
   if (can('orderStatus') && transicoesDe(o).includes('Finalizado')) {
@@ -275,6 +290,95 @@ async function viewOS(id) {
 
   if (document.getElementById('galeria')) carregarFotos(o.id);
   carregarHistorico(o.id);
+}
+
+// ── Exportação da O.S. em PDF ──
+// Monta uma folha de impressão com todos os dados da ordem de serviço.
+// O que só existe após o encerramento aparece como "O.S ainda não finalizada".
+const PENDENTE = 'O.S ainda não finalizada';
+
+async function exportarPDF(id) {
+  const o = orders.find((x) => x.id === id);
+  if (!o) return;
+  const finalizada = OS_CLOSED.includes(o.status);
+
+  let fotos = [];
+  let assinatura = null;
+  if (finalizada) {
+    try {
+      const [rf, ra] = await Promise.all([
+        authFetch(`${API_URL}/service-orders/${id}/photos`),
+        authFetch(`${API_URL}/service-orders/${id}/signature`),
+      ]);
+      if (rf.ok) fotos = (await rf.json()).fotos || [];
+      if (ra.ok) assinatura = (await ra.json()).assinatura || null;
+    } catch (e) { /* o PDF é gerado mesmo sem anexos */ }
+  }
+
+  const linha = (rot, val) => `<tr><th>${esc(rot)}</th><td>${val}</td></tr>`;
+  const texto = (v) => esc(v || '—');
+  const posFinal = (v) => (finalizada ? esc(v || '—') : `<em>${PENDENTE}</em>`);
+
+  const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+    <title>O.S. #${esc(o.number)}</title>
+    <style>
+      *{box-sizing:border-box} body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:28px}
+      h1{font-size:20px;margin:0 0 2px} h2{font-size:14px;margin:22px 0 8px;border-bottom:2px solid #111;padding-bottom:4px}
+      .sub{color:#555;font-size:12px;margin-bottom:8px}
+      table{width:100%;border-collapse:collapse;font-size:12px}
+      th,td{border:1px solid #bbb;padding:6px 8px;text-align:left;vertical-align:top}
+      th{width:210px;background:#f2f2f2;font-weight:600}
+      .fotos{display:flex;flex-wrap:wrap;gap:8px} .fotos img{width:31%;border:1px solid #bbb}
+      .assin img{max-width:280px;border:1px solid #bbb}
+      @media print{body{margin:12mm}}
+    </style></head><body>
+    <h1>Ordem de Serviço #${esc(o.number)}</h1>
+    <div class="sub">KUBA TECH — atendimento ${o.service_type === 'externo' ? 'externo' : 'interno'} · Emitido em ${new Date().toLocaleString('pt-BR')}</div>
+
+    <h2>Cliente</h2><table>
+      ${linha('Nome', texto(o.customer_name))}
+      ${linha('Razão social', texto(o.customer_company_name))}
+      ${linha(o.customer_document_type || 'CPF', texto(o.customer_cpf))}
+    </table>
+
+    <h2>Equipamento</h2><table>
+      ${linha('Tipo', texto(o.device_type))}
+      ${linha('Marca / Modelo', `${texto(o.device_brand)} ${esc(o.device_model || '')}`)}
+      ${linha('Número de série', texto(o.serial_number))}
+    </table>
+
+    <h2>Atendimento</h2><table>
+      ${linha('Status atual', texto(o.status))}
+      ${linha('Abertura', texto(fmtDate(o.opening_date)))}
+      ${linha('Aberta por', texto(autorOS(o)))}
+      ${linha('Técnico responsável', texto(o.technician_name))}
+      ${linha('Agendamento', o.scheduled_at ? esc(fmtDateTime(o.scheduled_at)) : 'Sem agendamento')}
+      ${linha('Prazo (SLA)', `${esc(o.sla_hours || slaPadrao)} horas${o.sla_due_at ? ` — vence em ${esc(fmtDateTime(o.sla_due_at))}` : ''}`)}
+      ${o.service_type === 'externo' ? linha('Endereço', texto(enderecoTexto(o))) : ''}
+      ${linha('Defeito relatado', texto(o.problem_description))}
+    </table>
+
+    <h2>Encerramento</h2><table>
+      ${linha('Diagnóstico', posFinal(o.diagnosis))}
+      ${linha('Solução aplicada', posFinal(o.solution))}
+      ${linha('Data de encerramento', posFinal(o.closing_date ? fmtDateTime(o.closing_date) : ''))}
+    </table>
+
+    ${fotos.length ? `<h2>Evidências fotográficas</h2><div class="fotos">
+      ${fotos.map((f) => `<img src="${esc(f.image_url)}" alt="Evidência da O.S.">`).join('')}</div>` : ''}
+
+    ${assinatura ? `<h2>Assinatura do cliente</h2><div class="assin">
+      <img src="${esc(assinatura.image_url)}" alt="Assinatura do cliente"><br>
+      <small>${esc(assinatura.signer_name || o.customer_name)}</small></div>` : ''}
+    </body></html>`;
+
+  const janela = window.open('', '_blank');
+  if (!janela) return toast('Libere as janelas pop-up para exportar o PDF.', 'err');
+  janela.document.write(html);
+  janela.document.close();
+  janela.focus();
+  // Aguarda as imagens carregarem antes de abrir a caixa de impressão.
+  setTimeout(() => janela.print(), 800);
 }
 
 // ── Evidências fotográficas ──
@@ -293,7 +397,6 @@ async function carregarFotos(id) {
       ? fotos.map((f) => `
         <figure class="foto-item">
           <img src="${esc(f.image_url)}" alt="Evidência da O.S." loading="lazy" onclick="ampliarFoto('${esc(f.image_url)}')">
-          ${can('photos') && temFotos() ? `<button class="foto-x" title="Excluir" onclick="removerFoto('${id}','${f.id}')">×</button>` : ''}
         </figure>`).join('')
       : '<span class="stat-lbl">Nenhuma evidência registrada.</span>';
   } catch {
@@ -335,14 +438,8 @@ async function enviarFotos(id) {
   }
 }
 
-async function removerFoto(id, imageId) {
-  if (!confirm('Excluir esta evidência?')) return;
-  const res = await authFetch(`${API_URL}/service-orders/${id}/photos/${imageId}`, { method: 'DELETE' });
-  const dados = await res.json();
-  if (!res.ok) return toast(dados.error || 'Erro ao excluir.', 'err');
-  toast('Foto removida.');
-  carregarFotos(id);
-}
+// As evidências fotográficas anexadas à O.S. são permanentes:
+// não existe exclusão de fotos em nenhum perfil.
 
 // ── Assinatura digital ──
 async function carregarAssinatura(id) {
@@ -468,7 +565,7 @@ async function carregarHistorico(id) {
 function statusChips(o) {
   if (!can('orderStatus')) return '';
   const opcoes = transicoesDe(o);
-  const podeAgendar = !SLA_ENCERRADAS.includes(o.status);
+  const podeAgendar = o.service_type === 'externo' && !SLA_ENCERRADAS.includes(o.status);
   const chips = [];
 
   if (podeAgendar) {
@@ -696,11 +793,29 @@ function deviceOptions(customerId, selected) {
     .join('');
 }
 
+/** Preenche o endereço do atendimento externo com o endereço do cliente. */
+function preencherEnderecoDoCliente(customerId) {
+  const cliente = customersRef.find((c) => c.id === customerId);
+  if (!cliente) return;
+  const set = (id, valor) => {
+    const campo = document.getElementById(id);
+    if (campo && !campo.value.trim()) campo.value = valor || '';
+  };
+  set('f-cep', cliente.zip_code ? maskCEP(cliente.zip_code) : '');
+  set('f-rua', cliente.address);
+  set('f-numero', cliente.address_number);
+  set('f-bairro', cliente.neighborhood);
+  set('f-cidade', cliente.city);
+  set('f-estado', cliente.state);
+}
+
 function bindFormulario() {
   const cli = document.getElementById('f-cliente');
   if (cli) {
     cli.addEventListener('change', () => {
       document.getElementById('f-device').innerHTML = deviceOptions(cli.value, '');
+      const externoAtivo = (document.querySelector('input[name="tipo-atend"]:checked') || {}).value === 'externo';
+      if (externoAtivo) preencherEnderecoDoCliente(cli.value);
     });
   }
 
@@ -708,6 +823,9 @@ function bindFormulario() {
     radio.addEventListener('change', () => {
       const externo = radio.value === 'externo' && radio.checked;
       document.getElementById('bloco-endereco').style.display = externo ? '' : 'none';
+      const inicial = document.getElementById('f-status-inicial');
+      if (inicial) inicial.value = externo ? 'Aberto' : 'Ag. Execução';
+      if (externo && cli) preencherEnderecoDoCliente(cli.value);
     });
   });
 
@@ -747,18 +865,22 @@ function formHTML(o) {
 
     <div class="d-divider"></div>
     <div class="d-section"><i class="fas fa-route"></i> Tipo do atendimento</div>
-    <div class="fg">
+    ${o
+      ? `<div class="fg">
+      <input type="text" class="fc" value="${externo ? 'Externo' : 'Interno'}" disabled>
+      <span class="stat-lbl">O tipo do atendimento é definido na abertura e não pode ser alterado.</span></div>`
+      : `<div class="fg">
       <div class="radio-row">
-        <label class="radio-opt"><input type="radio" name="tipo-atend" value="interno" ${externo ? '' : 'checked'}> Interno</label>
-        <label class="radio-opt"><input type="radio" name="tipo-atend" value="externo" ${externo ? 'checked' : ''} ${temGeo() ? '' : 'disabled'}> Externo</label>
+        <label class="radio-opt"><input type="radio" name="tipo-atend" value="interno" checked> Interno</label>
+        <label class="radio-opt"><input type="radio" name="tipo-atend" value="externo" ${temGeo() ? '' : 'disabled'}> Externo</label>
       </div>
       ${temGeo() ? '' : '<span class="stat-lbl">O atendimento externo faz parte do módulo Geolocalização.</span>'}
-    </div>
+    </div>`}
 
     <div id="bloco-endereco" style="${externo ? '' : 'display:none;'}">
       <div class="fg"><label>CEP *</label>
         <input type="text" class="fc" id="f-cep" maxlength="9" value="${esc(o ? (o.zip_code || '') : '')}" placeholder="00000-000">
-        <span class="stat-lbl">Rua, bairro, cidade e estado são preenchidos automaticamente (ViaCEP).</span></div>
+        <span class="stat-lbl">Sugerimos o endereço do cliente; você pode editar à vontade.</span></div>
       <div class="fg"><label>Rua *</label>
         <input type="text" class="fc" id="f-rua" value="${esc(o ? (o.address || '') : '')}"></div>
       <div class="grid-2">
@@ -793,17 +915,15 @@ function formHTML(o) {
         ${statusPara(o.service_type).map((s) => `<option value="${s}" ${o.status === s ? 'selected' : ''}>${s}</option>`).join('')}
       </select></div>`
       : `<div class="fg"><label>Status</label>
-      <input type="text" class="fc" value="Aberto" disabled>
-      <span class="stat-lbl">A O.S. nasce Aberta (SLA de agendamento de 24 horas) e só avança após ser agendada.</span></div>`}
+      <input type="text" class="fc" id="f-status-inicial" value="Ag. Execução" disabled>
+      <span class="stat-lbl">A O.S. interna nasce em <strong>Ag. Execução</strong>. A externa nasce <strong>Aberta</strong> e aguarda agendamento.</span></div>`}
     <div class="fg"><label>Prazo de serviço — SLA (horas)</label>
-      <input type="number" class="fc" id="f-sla" min="1" max="8760"
-        value="${o && o.sla_hours ? o.sla_hours : slaPadrao}"
-        ${can('companySettings') ? '' : 'disabled'}>
-      ${can('companySettings') ? '' : '<span class="stat-lbl">Somente o Administrador da Empresa altera o prazo.</span>'}</div>
+      <input type="text" class="fc" id="f-sla" value="${o && o.sla_hours ? o.sla_hours : slaPadrao} horas" disabled>
+      <span class="stat-lbl">${can('companySettings')
+        ? 'Prazo padrão da empresa. Para alterar o prazo desta O.S., use a ação "Prazo" nos detalhes.'
+        : 'Somente o Administrador da Empresa altera o prazo.'}</span></div>
     <div class="fg"><label>Defeito relatado * (mínimo 10 caracteres)</label>
-      <textarea class="fc" id="f-defeito" rows="4" placeholder="Descreva o problema informado pelo cliente...">${esc(o ? o.problem_description : '')}</textarea></div>
-    <div class="fg"><label>Solução aplicada</label>
-      <textarea class="fc" id="f-solucao" rows="4" placeholder="Preenchida durante o atendimento...">${esc(o && o.solution ? o.solution : '')}</textarea></div>`;
+      <textarea class="fc" id="f-defeito" rows="4" placeholder="Descreva o problema informado pelo cliente...">${esc(o ? o.problem_description : '')}</textarea></div>`;
 }
 
 async function saveOS() {
@@ -814,14 +934,11 @@ async function saveOS() {
   const statusField = document.getElementById('f-status');
   const status = statusField ? statusField.value : undefined;
   const problemDescription = document.getElementById('f-defeito').value.trim();
-  const solution = document.getElementById('f-solucao').value.trim();
-  const slaField = document.getElementById('f-sla');
-  const slaHours = slaField && !slaField.disabled ? Number(slaField.value) : undefined;
-  const serviceType = (document.querySelector('input[name="tipo-atend"]:checked') || {}).value || 'interno';
+  // O tipo do atendimento é definido na abertura e nunca muda depois.
+  const serviceType = editingId
+    ? ((orders.find((x) => x.id === editingId) || {}).service_type || 'interno')
+    : ((document.querySelector('input[name="tipo-atend"]:checked') || {}).value || 'interno');
 
-  if (slaHours !== undefined && (!Number.isInteger(slaHours) || slaHours < 1 || slaHours > 8760)) {
-    return toast('Informe o SLA em horas (entre 1 e 8760).', 'err');
-  }
   if (!customerId) return toast('Selecione o cliente.', 'err');
   if (!deviceId) return toast('Selecione o equipamento.', 'err');
   if (!technicianId) {
@@ -832,9 +949,11 @@ async function saveOS() {
   if (!isValidPastOrTodayDate(openingDate)) return toast('Data de abertura inválida (não pode ser futura).', 'err');
   if (problemDescription.length < 10) return toast('Descreva o defeito com ao menos 10 caracteres.', 'err');
 
+  // A solução aplicada só é escrita na finalização; o prazo (SLA) usa o
+  // padrão da empresa e é ajustado apenas pelo Administrador nos detalhes.
   const payload = {
     customerId, deviceId, openingDate, technicianId, status,
-    problemDescription, solution, slaHours, serviceType,
+    problemDescription, serviceType,
   };
 
   if (serviceType === 'externo') {

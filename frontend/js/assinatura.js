@@ -186,14 +186,14 @@ function abrirSolicitacao(planIdSelecionado = '') {
           para combinar as condições comerciais. Nenhum pagamento é feito pelo sistema.</p>
         <div class="f">
           <label for="plano-desejado">Plano desejado</label>
-          <select id="plano-desejado">
+          <select id="plano-desejado" class="fc">
             <option value="">Quero orientação da equipe</option>
             ${opcoes}
           </select>
         </div>
         <div class="f">
-          <label for="msg-plano">Mensagem (opcional)</label>
-          <textarea id="msg-plano" rows="3" maxlength="1000"
+          <label for="msg-plano">Descreva sua necessidade (opcional)</label>
+          <textarea id="msg-plano" class="fc" rows="4" maxlength="1000" style="width:100%;display:block;"
             placeholder="Ex.: precisamos liberar o módulo de relatórios para o gestor."></textarea>
         </div>
       </div>

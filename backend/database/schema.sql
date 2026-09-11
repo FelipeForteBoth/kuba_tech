@@ -218,6 +218,11 @@ CREATE TABLE IF NOT EXISTS plan_change_requests (
 CREATE INDEX IF NOT EXISTS idx_plan_requests_tenant ON plan_change_requests(tenant_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_plan_requests_status ON plan_change_requests(status);
 
+ALTER TABLE plan_change_requests    ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;
+ALTER TABLE password_reset_requests ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS idx_plan_requests_archived ON plan_change_requests(archived_at);
+CREATE INDEX IF NOT EXISTS idx_pwd_requests_archived  ON password_reset_requests(archived_at);
+
 -- ---------------------------------------------------------------------
 -- Clientes (Pessoa Física — CPF — e Pessoa Jurídica — CNPJ)
 -- ---------------------------------------------------------------------
@@ -377,8 +382,14 @@ UPDATE service_orders SET status = CASE status
   END;
 
 ALTER TABLE service_orders ADD CONSTRAINT service_orders_status_chk
-  CHECK (status IN ('Aberto','Agendado','Em deslocamento','No local','Em execução',
+  CHECK (status IN ('Aberto','Ag. Execução','Agendado','Em deslocamento','No local','Em execução',
                     'Aguardando cliente','Finalizado','Entregue','Cancelado'));
+
+-- A O.S. interna não passa por agendamento: nasce aguardando execução.
+UPDATE service_orders
+   SET status = 'Ag. Execução'
+ WHERE COALESCE(service_type, 'interno') = 'interno'
+   AND status IN ('Aberto','Agendado');
 ALTER TABLE service_orders ALTER COLUMN status SET DEFAULT 'Aberto';
 
 UPDATE service_orders SET service_type = 'interno' WHERE service_type IS NULL;

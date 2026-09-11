@@ -38,6 +38,7 @@ const REQ_STATUS = {
 function atualizarBadge() {
   const badge = document.getElementById('badge-notif');
   if (!badge) return;
+  if (verArquivadas) return; // o contador reflete apenas a fila ativa
   const pendentes = solicitacoes.filter((s) => s.status === 'pending').length
     + recuperacoes.filter((r) => r.status === 'pending').length;
   badge.textContent = pendentes;
@@ -53,6 +54,17 @@ function trocarAba(alvo) {
   });
 }
 
+// Sub-abas: fila ativa x solicitações já arquivadas.
+let verArquivadas = false;
+
+function trocarSubAba(arquivadas) {
+  verArquivadas = arquivadas;
+  document.getElementById('sub-ativas').setAttribute('aria-selected', String(!arquivadas));
+  document.getElementById('sub-arquivadas').setAttribute('aria-selected', String(arquivadas));
+  loadSolicitacoes();
+  loadRecuperacoes();
+}
+
 // ── Solicitações de alteração de plano ──
 async function loadSolicitacoes() {
   const box = document.getElementById('solicitacoes');
@@ -60,7 +72,7 @@ async function loadSolicitacoes() {
   const filtro = document.getElementById('filtro-solic').value;
   box.innerHTML = stateMsg('loading', 'Carregando solicitações...');
   try {
-    const res = await authFetch(`${API_URL}/platform/plan-requests?status=${filtro}&t=${Date.now()}`);
+    const res = await authFetch(`${API_URL}/platform/plan-requests?status=${filtro}&archived=${verArquivadas}&t=${Date.now()}`);
     if (!res.ok) throw new Error('requests');
     solicitacoes = await res.json();
     renderSolicitacoes();
@@ -74,11 +86,15 @@ function renderSolicitacoes() {
   const box = document.getElementById('solicitacoes');
   atualizarBadge();
   if (!solicitacoes.length) {
-    box.innerHTML = stateMsg('empty', 'Nenhuma solicitação de plano no momento.');
+    box.innerHTML = stateMsg('empty', verArquivadas
+      ? 'Nenhuma solicitação de plano arquivada.'
+      : 'Nenhuma solicitação de plano no momento.');
     return;
   }
   box.innerHTML = solicitacoes.map((s) => {
     const [label, cls] = REQ_STATUS[s.status] || [s.status_label || s.status, 'badge-todo'];
+    // Concluída é ponto final: resta visualizar ou arquivar.
+    const somenteLeitura = s.status === 'done' || Boolean(s.archived_at);
     return `<article class="pay-card">
       <div class="pay-card-hd">
         <strong>${esc(s.company_name || '—')}</strong>
@@ -87,6 +103,14 @@ function renderSolicitacoes() {
       <p><span>Plano</span> ${esc(s.current_plan_name || '—')} → ${esc(s.desired_plan_name || 'a definir')}</p>
       <p><span>Solicitante</span> ${esc(s.requester_name || '—')} · ${fmtDateTime(s.created_at)}</p>
       ${s.message ? `<p><span>Mensagem</span> ${esc(s.message)}</p>` : ''}
+      ${somenteLeitura ? `
+      ${s.answer ? `<p><span>Resposta</span> ${esc(s.answer)}</p>` : ''}
+      ${s.archived_at ? `<p><span>Arquivada em</span> ${fmtDateTime(s.archived_at)}</p>` : `
+        <div class="pay-card-actions">
+          <button class="btn btn-ghost btn-sm" onclick="arquivarSolicitacao('${s.id}', this)">
+            <i class="fas fa-box-archive"></i> Arquivar
+          </button>
+        </div>`}` : `
       <div class="fg">
         <label for="st-${s.id}">Atualizar situação</label>
         <select class="fc" id="st-${s.id}">
@@ -99,7 +123,7 @@ function renderSolicitacoes() {
       </div>
       <button class="btn btn-primary btn-sm" onclick="salvarSolicitacao('${s.id}', this)">
         <i class="fas fa-paper-plane"></i> Atualizar e notificar
-      </button>
+      </button>`}
     </article>`;
   }).join('');
 }
@@ -126,6 +150,40 @@ async function salvarSolicitacao(id, btn) {
   }, 'Salvando...');
 }
 
+/** Arquiva uma solicitação de plano já concluída ou recusada. */
+async function arquivarSolicitacao(id, btn) {
+  await runAction(btn, async () => {
+    try {
+      const res = await authFetch(`${API_URL}/platform/plan-requests/${id}/archive`, { method: 'PATCH' });
+      const data = await res.json();
+      if (!res.ok) return toast(data.error || 'Não foi possível arquivar.', 'err');
+      toast(data.message || 'Solicitação arquivada.', 'ok');
+      await loadSolicitacoes();
+    } catch (e) {
+      console.error(e);
+      toast('Falha de comunicação com o servidor.', 'err');
+    }
+    return undefined;
+  }, 'Arquivando...');
+}
+
+/** Arquiva uma solicitação de senha já aprovada ou recusada. */
+async function arquivarSenha(id, btn) {
+  await runAction(btn, async () => {
+    try {
+      const res = await authFetch(`${API_URL}/auth/password-requests/${id}/archive`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) return toast(data.error || 'Não foi possível arquivar.', 'err');
+      toast(data.message || 'Solicitação arquivada.', 'ok');
+      await loadRecuperacoes();
+    } catch (e) {
+      console.error(e);
+      toast('Falha de comunicação com o servidor.', 'err');
+    }
+    return undefined;
+  }, 'Arquivando...');
+}
+
 // ── Recuperações de senha de Administradores de Empresa ──
 let recuperacoes = [];
 
@@ -134,7 +192,7 @@ async function loadRecuperacoes() {
   if (!box) return;
   box.innerHTML = stateMsg('loading', 'Carregando solicitações de senha...');
   try {
-    const res = await authFetch(`${API_URL}/auth/password-requests?t=${Date.now()}`);
+    const res = await authFetch(`${API_URL}/auth/password-requests?archived=${verArquivadas}&t=${Date.now()}`);
     if (!res.ok) throw new Error('password-requests');
     recuperacoes = await res.json();
     renderRecuperacoes();
@@ -148,7 +206,9 @@ function renderRecuperacoes() {
   const box = document.getElementById('recuperacoes');
   atualizarBadge();
   if (!recuperacoes.length) {
-    box.innerHTML = stateMsg('empty', 'Nenhuma solicitação de recuperação de senha.');
+    box.innerHTML = stateMsg('empty', verArquivadas
+      ? 'Nenhuma solicitação de senha arquivada.'
+      : 'Nenhuma solicitação de recuperação de senha.');
     return;
   }
   box.innerHTML = recuperacoes.map((r) => `
@@ -161,15 +221,21 @@ function renderRecuperacoes() {
       <p><span>E-mail</span> ${esc(r.user_email)}</p>
       <p><span>Solicitada em</span> ${fmtDateTime(r.created_at)}</p>
       ${r.reason ? `<p><span>Motivo</span> ${esc(r.reason)}</p>` : ''}
+      ${r.archived_at ? `<p><span>Arquivada em</span> ${fmtDateTime(r.archived_at)}</p>` : ''}
       ${r.status === 'pending' ? `
         <div class="pay-card-actions">
           <button class="btn btn-primary btn-sm" onclick="decidirSenha('${r.id}','approve',this)">
-            <i class="fas fa-check"></i> Aprovar e enviar link
+            <i class="fas fa-check"></i> Aprovar (senha volta para 123456)
           </button>
           <button class="btn btn-del btn-sm" onclick="decidirSenha('${r.id}','reject',this)">
             <i class="fas fa-xmark"></i> Recusar
           </button>
-        </div>` : ''}
+        </div>` : (r.archived_at ? '' : `
+        <div class="pay-card-actions">
+          <button class="btn btn-ghost btn-sm" onclick="arquivarSenha('${r.id}', this)">
+            <i class="fas fa-box-archive"></i> Arquivar
+          </button>
+        </div>`)}
     </article>`).join('');
 }
 
@@ -485,8 +551,26 @@ document.addEventListener('DOMContentLoaded', () => {
   loadTudo();
   loadSolicitacoes();
   loadRecuperacoes();
+
+  // Atualização automática das notificações (sem recarregar a página).
+  // Pausa quando a aba está em segundo plano ou quando um painel lateral
+  // está aberto, para não descartar o que o usuário está editando.
+  setInterval(() => {
+    if (document.hidden) return;
+    const drawer = document.getElementById('drawer');
+    if (drawer && drawer.classList.contains('on')) return;
+    loadSolicitacoes();
+    loadRecuperacoes();
+  }, 20000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) return;
+    loadSolicitacoes();
+    loadRecuperacoes();
+  });
   const filtro = document.getElementById('filtro-solic');
   if (filtro) filtro.addEventListener('change', loadSolicitacoes);
+  document.getElementById('sub-ativas').addEventListener('click', () => trocarSubAba(false));
+  document.getElementById('sub-arquivadas').addEventListener('click', () => trocarSubAba(true));
   document.getElementById('tab-empresas').addEventListener('click', () => trocarAba('empresas'));
   document.getElementById('tab-notificacoes').addEventListener('click', () => trocarAba('notificacoes'));
   const btnNew = document.getElementById('btn-new');

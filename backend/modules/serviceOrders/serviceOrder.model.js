@@ -23,6 +23,7 @@ const SLA_KIND_EXPR = `
     ELSE 'servico'
   END`;
 
+
 const BASE_SELECT = `
   SELECT so.*,
          ${SLA_DUE_EXPR} AS sla_due_at,
@@ -35,6 +36,7 @@ const BASE_SELECT = `
          d.serial_number, d.type AS device_type, d.brand AS device_brand, d.model AS device_model,
          t.name  AS technician_name,
          u.name  AS created_by_name,
+         u.role  AS created_by_role,
          (SELECT COUNT(*)::int FROM service_order_images i
            WHERE i.service_order_id = so.id AND i.deleted_at IS NULL) AS photo_count,
          (SELECT COUNT(*)::int FROM service_order_signatures s
@@ -111,18 +113,21 @@ const create = (tenantId, data) =>
     ],
   );
 
+// O tipo de atendimento (interno/externo) é imutável após a abertura e a
+// solução aplicada só é escrita na finalização da O.S.
 const update = (tenantId, id, data) =>
   db.one(
     `UPDATE service_orders
         SET customer_id = $3, device_id = $4, technician_id = $5, opening_date = $6,
-            problem_description = $7, solution = $8, status = $9, sla_hours = $10,
-            service_type = $11, zip_code = $12, address = $13, address_number = $14,
-            neighborhood = $15, city = $16, state = $17, latitude = $18, longitude = $19
+            problem_description = $7, solution = COALESCE($8, solution), status = $9,
+            sla_hours = COALESCE($10, sla_hours),
+            zip_code = $11, address = $12, address_number = $13,
+            neighborhood = $14, city = $15, state = $16, latitude = $17, longitude = $18
       WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL RETURNING *`,
     [
       tenantId, id, data.customerId, data.deviceId, data.technicianId, data.openingDate,
-      data.problemDescription, data.solution, data.status, data.slaHours,
-      data.serviceType, data.zipCode, data.address, data.addressNumber,
+      data.problemDescription, data.solution || null, data.status, data.slaHours || null,
+      data.zipCode, data.address, data.addressNumber,
       data.neighborhood, data.city, data.state, data.latitude, data.longitude,
     ],
   );

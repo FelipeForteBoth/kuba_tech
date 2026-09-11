@@ -24,13 +24,13 @@ ON CONFLICT (code) DO UPDATE
 -- Planos comercializados
 INSERT INTO plans (code, name, description, monthly_price, max_users) VALUES
   ('start',        'Start',        'Para assistências que estão começando.',            59.90,  3),
-  ('professional', 'Professional', 'Relatórios gerenciais e gestão de prazos (SLA).',  119.90, 15),
-  ('business',     'Business',     'Todos os módulos, para operações de grande porte.', 249.90, 50)
+  ('professional', 'Premium',      'Relatórios gerenciais e gestão de prazos (SLA).',   99.90, 15),
+  ('business',     'Elite',        'Todos os módulos, para operações de grande porte.', 179.90, 50)
 ON CONFLICT (code) DO UPDATE
    SET name = EXCLUDED.name, description = EXCLUDED.description, monthly_price = EXCLUDED.monthly_price;
 
 -- Módulos incluídos em cada plano
---   Start (4) < Professional (6) < Business (8)
+--   Start (4) < Premium (6) < Elite (8)
 DELETE FROM plan_modules;
 
 INSERT INTO plan_modules (plan_id, module_id)

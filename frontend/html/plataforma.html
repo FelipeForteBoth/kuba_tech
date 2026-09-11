@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Plataforma — Kuba Tech</title>
+  <link rel="icon" type="image/png" href="../img/favicon.png">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link rel="stylesheet" href="../css/style.css">
@@ -13,7 +14,7 @@
 <nav class="navbar">
   <button id="menu-btn"><i class="fas fa-bars"></i></button>
   <a href="plataforma.html" class="navbar-brand">
-    <div class="brand-icon"><i class="fas fa-tools"></i></div>
+    <div class="brand-icon"><img src="../img/logo-kuba-app.png" alt="Kuba Tech"></div>
     Kuba Tech
   </a>
 </nav>
@@ -90,11 +91,20 @@
     <section id="painel-notificacoes" role="tabpanel" aria-labelledby="tab-notificacoes" hidden>
       <p class="page-sub">Solicitações enviadas pelas empresas contratantes. Nenhuma senha é exibida aqui.</p>
 
+      <div class="tabs" role="tablist" aria-label="Situação das solicitações">
+        <button class="tab-btn" id="sub-ativas" role="tab" aria-selected="true">
+          <i class="fas fa-inbox"></i> Ativas
+        </button>
+        <button class="tab-btn" id="sub-arquivadas" role="tab" aria-selected="false">
+          <i class="fas fa-box-archive"></i> Arquivadas
+        </button>
+      </div>
+
       <h2 class="section-title" id="tit-solic">Solicitações de alteração de plano</h2>
       <div class="toolbar">
         <div class="f" style="max-width:280px;">
           <label class="sr-only" for="filtro-solic">Filtrar por situação</label>
-          <select id="filtro-solic">
+          <select class="fc" id="filtro-solic">
             <option value="">Todas as situações</option>
             <option value="pending">Aguardando análise</option>
             <option value="in_service">Em atendimento</option>

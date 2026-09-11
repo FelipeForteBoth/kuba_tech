@@ -91,14 +91,16 @@ function recuperacaoSolicitada({ approverName, userName, userEmail, companyName,
 }
 
 /** Aprovação: envia o link de redefinição ao usuário. */
-function recuperacaoAprovada({ name, resetUrl, expiresInHours = 1 }) {
+function recuperacaoAprovada({ name, resetUrl, tempPassword = '123456' }) {
   return {
     subject: 'Recuperação de senha aprovada — Kuba Tech',
     html: layout({
       title: 'Sua recuperação de senha foi aprovada',
-      intro: `Olá, <strong>${escape(name)}</strong>. O responsável aprovou a sua solicitação. Clique no botão abaixo para cadastrar uma nova senha.`,
-      cta: { url: resetUrl, label: 'Cadastrar nova senha' },
-      note: `O link é de uso único e expira em ${expiresInHours} hora(s). Se você não solicitou, ignore este e-mail.`,
+      intro: `Olá, <strong>${escape(name)}</strong>. O responsável aprovou a sua solicitação. `
+        + `A sua senha voltou para a senha temporária <strong>${escape(tempPassword)}</strong>.`,
+      rows: [['Senha temporária', tempPassword]],
+      cta: resetUrl ? { url: resetUrl, label: 'Entrar e cadastrar nova senha' } : null,
+      note: 'No primeiro acesso o sistema pedirá o cadastro de uma nova senha. Se você não solicitou, avise o responsável.',
     }),
   };
 }

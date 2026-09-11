@@ -38,7 +38,7 @@ const platformAdmins = () =>
   db.all("SELECT name, email FROM users WHERE role = 'platform_admin' AND active = TRUE", []);
 
 /** Fila do Administrador da Plataforma (pedidos de Administradores de Empresa). */
-const listForPlatform = (status) =>
+const listForPlatform = (status, archived = false) =>
   db.all(
     `SELECT r.*, u.name AS user_name, u.email AS user_email, u.role AS user_role,
             t.company_name
@@ -47,13 +47,14 @@ const listForPlatform = (status) =>
   LEFT JOIN tenants t ON t.id = r.tenant_id
       WHERE r.approver_scope = 'platform_admin'
         AND ($1 = '' OR r.status = $1)
+        AND (($2 AND r.archived_at IS NOT NULL) OR (NOT $2 AND r.archived_at IS NULL))
       ORDER BY (r.status = 'pending') DESC, r.created_at DESC
       LIMIT 50`,
-    [status || ''],
+    [status || '', Boolean(archived)],
   );
 
 /** Fila do Administrador da Empresa (pedidos da própria equipe). */
-const listForCompany = (tenantId, status) =>
+const listForCompany = (tenantId, status, archived = false) =>
   db.all(
     `SELECT r.*, u.name AS user_name, u.email AS user_email, u.role AS user_role
        FROM password_reset_requests r
@@ -61,9 +62,10 @@ const listForCompany = (tenantId, status) =>
       WHERE r.approver_scope = 'company_admin'
         AND r.tenant_id = $1
         AND ($2 = '' OR r.status = $2)
+        AND (($3 AND r.archived_at IS NOT NULL) OR (NOT $3 AND r.archived_at IS NULL))
       ORDER BY (r.status = 'pending') DESC, r.created_at DESC
       LIMIT 50`,
-    [tenantId, status || ''],
+    [tenantId, status || '', Boolean(archived)],
   );
 
 const findById = (id) =>
@@ -117,6 +119,21 @@ const setPassword = (userId, hash) =>
     [userId, hash],
   );
 
+/** Devolve a senha temporária padrão e exige a troca no próximo acesso. */
+const setTemporaryPassword = (userId, hash) =>
+  db.run(
+    'UPDATE users SET password_hash = $2, must_change_password = TRUE WHERE id = $1',
+    [userId, hash],
+  );
+
+/** Arquiva um pedido já decidido (sai da fila ativa de notificações). */
+const archive = (id) =>
+  db.one(
+    `UPDATE password_reset_requests SET archived_at = NOW()
+      WHERE id = $1 AND status <> 'pending' AND archived_at IS NULL RETURNING *`,
+    [id],
+  );
+
 module.exports = {
   findUserByEmail,
   pendingForUser,
@@ -131,4 +148,6 @@ module.exports = {
   findValidToken,
   consume,
   setPassword,
+  setTemporaryPassword,
+  archive,
 };
