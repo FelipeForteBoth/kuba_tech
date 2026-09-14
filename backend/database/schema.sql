@@ -495,19 +495,11 @@ CREATE TABLE IF NOT EXISTS service_order_history (
 CREATE INDEX IF NOT EXISTS idx_os_history_order ON service_order_history(service_order_id, created_at DESC);
 
 -- ---------------------------------------------------------------------
--- Registro dos e-mails automáticos (recuperação de senha, avisos)
+-- Remoção do antigo registro de e-mails automáticos
+-- (os avisos do sistema usam as notificações internas; o resultado
+-- dos envios de e-mail aparece apenas no console do servidor)
 -- ---------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS email_logs (
-  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id  UUID REFERENCES tenants(id) ON DELETE SET NULL,
-  template   VARCHAR(60)  NOT NULL,
-  recipient  VARCHAR(150) NOT NULL,
-  subject    VARCHAR(200) NOT NULL,
-  status     VARCHAR(20)  NOT NULL DEFAULT 'sent',
-  error      TEXT,
-  created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW()
-);
-CREATE INDEX IF NOT EXISTS idx_email_logs_tenant ON email_logs(tenant_id, created_at DESC);
+DROP TABLE IF EXISTS email_logs CASCADE;
 
 -- ---------------------------------------------------------------------
 -- Remoção definitiva do antigo módulo de pagamentos
@@ -537,6 +529,6 @@ ALTER TABLE service_order_signatures ENABLE ROW LEVEL SECURITY;
 ALTER TABLE service_order_history    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE password_reset_requests  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE plan_change_requests     ENABLE ROW LEVEL SECURITY;
-ALTER TABLE email_logs               ENABLE ROW LEVEL SECURITY;
+
 
 REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon, authenticated;

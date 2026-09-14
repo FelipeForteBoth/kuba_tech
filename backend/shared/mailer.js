@@ -5,28 +5,14 @@
 //   1) Brevo  — BREVO_API_KEY   (plano gratuito: 300 e-mails/dia)
 //   2) Resend — RESEND_API_KEY  (plano gratuito: 3.000 e-mails/mês)
 //
-// Todo envio (sucesso ou falha) é registrado na tabela email_logs.
-// Se nenhuma chave estiver configurada, o e-mail é registrado com
-// status "skipped" e a operação de negócio segue normalmente.
+// Não há registro em banco: o resultado aparece apenas no console
+// do servidor. Se nenhuma chave estiver configurada, o envio é
+// ignorado e a operação de negócio segue normalmente.
 // ─────────────────────────────────────────────────────────────
-const db = require('../config/database');
 const templates = require('./emailTemplates');
 
 const FROM_EMAIL = process.env.MAIL_FROM || 'nao-responda@kubatech.com.br';
 const FROM_NAME = process.env.MAIL_FROM_NAME || 'Kuba Tech';
-
-/** Grava o resultado do envio (nunca lança erro para não quebrar o fluxo). */
-async function log({ tenantId, template, recipient, subject, status, error }) {
-  try {
-    await db.run(
-      `INSERT INTO email_logs (tenant_id, template, recipient, subject, status, error)
-       VALUES ($1,$2,$3,$4,$5,$6)`,
-      [tenantId || null, template, recipient, subject.slice(0, 200), status, error || null],
-    );
-  } catch (err) {
-    console.error('Falha ao registrar e-mail:', err.message);
-  }
-}
 
 async function sendWithBrevo(to, subject, html) {
   const res = await fetch('https://api.brevo.com/v3/smtp/email', {
@@ -78,24 +64,15 @@ async function sendTemplate(template, to, data = {}, tenantId = null) {
     } else if (process.env.RESEND_API_KEY) {
       await sendWithResend(to, subject, html);
     } else {
-      await log({ tenantId, template, recipient: to, subject, status: 'skipped', error: 'Nenhuma API de e-mail configurada.' });
+      console.warn(`E-mail "${template}" para ${to} ignorado: nenhuma API de e-mail configurada.`);
       return { sent: false, reason: 'sem_provedor' };
     }
-    await log({ tenantId, template, recipient: to, subject, status: 'sent' });
+    console.log(`E-mail "${template}" enviado para ${to}.`);
     return { sent: true };
   } catch (error) {
     console.error('Falha no envio de e-mail:', error.message);
-    await log({ tenantId, template, recipient: to, subject, status: 'failed', error: error.message });
     return { sent: false, reason: 'falha_no_envio', error: error.message };
   }
 }
 
-/** Histórico de e-mails de uma empresa (usado pelo painel da plataforma). */
-const listLogs = (tenantId, limit = 50) =>
-  db.all(
-    `SELECT template, recipient, subject, status, error, created_at
-       FROM email_logs WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT $2`,
-    [tenantId, limit],
-  );
-
-module.exports = { sendTemplate, listLogs };
+module.exports = { sendTemplate };

@@ -31,7 +31,6 @@ TRUNCATE TABLE
   service_orders,
   devices,
   customers,
-  email_logs,
   password_reset_requests,
   plan_change_requests
 RESTART IDENTITY CASCADE;

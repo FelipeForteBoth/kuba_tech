@@ -21,7 +21,7 @@ router.post('/tenants', asyncHandler(controller.store));
 router.get('/tenants/:id', asyncHandler(controller.tenant));
 router.patch('/tenants/:id/status', asyncHandler(controller.updateStatus));
 router.patch('/tenants/:id/plan', asyncHandler(controller.changePlan));
-router.get('/tenants/:id/emails', asyncHandler(controller.emails));
+
 router.delete('/tenants/:id', asyncHandler(controller.destroy));
 
 module.exports = router;

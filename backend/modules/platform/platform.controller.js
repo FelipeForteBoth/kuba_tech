@@ -139,12 +139,6 @@ async function updateStatus(req, res) {
   res.json({ ...updated, email });
 }
 
-/** GET /tenants/:id/emails — histórico de e-mails enviados à empresa. */
-async function emails(req, res) {
-  if (!isValidUUID(req.params.id)) throw new AppError('Identificador inválido.');
-  res.json(await mailer.listLogs(req.params.id));
-}
-
 // ── Solicitações de alteração de plano ──────────────────────────────
 
 /** GET /plan-requests — pedidos enviados pelas empresas contratantes. */
@@ -234,5 +228,5 @@ async function metrics(_req, res) {
 
 module.exports = {
   tenants, tenant, store, destroy, updateStatus, changePlan, plans, modules, metrics,
-  emails, planRequests, updatePlanRequest, archivePlanRequest, PLAN_REQUEST_LABEL,
+  planRequests, updatePlanRequest, archivePlanRequest, PLAN_REQUEST_LABEL,
 };
