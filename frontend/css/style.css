@@ -556,7 +556,7 @@ input.autofilled, select.autofilled { background: #f8fafc; }
 
 /* ── Portal do Cliente (consulta pública) ───────────────────── */
 .portal-body { background: var(--bg); }
-.portal-main { max-width: 780px; margin: 0 auto; padding: 24px 16px 48px; }
+.portal-main { max-width: 780px; margin: 0 auto; padding: 56px 16px 48px; }
 .portal-form { display: grid; gap: 14px; padding: 20px; }
 .portal-result { display: grid; gap: 16px; margin-top: 20px; }
 .portal-count { margin: 4px 2px; }
@@ -570,7 +570,7 @@ input.autofilled, select.autofilled { background: #f8fafc; }
 .portal-footer { text-align: center; padding: 24px 16px; color: var(--text-2); font-size: .9rem; }
 .portal-footer a { color: inherit; }
 @media (max-width: 600px) {
-  .portal-main { padding: 16px 12px 40px; }
+  .portal-main { padding: 36px 12px 40px; }
   .portal-card-hd { flex-direction: column; }
 }
 
