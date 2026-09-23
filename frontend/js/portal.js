@@ -73,7 +73,7 @@ async function consultar() {
 
     const ordens = d.ordens || [];
     box.innerHTML = `
-      <p class="page-sub portal-count">${ordens.length} ordem${ordens.length !== 1 ? 'ns' : ''} de serviço encontrada${ordens.length !== 1 ? 's' : ''}.</p>
+      <p class="page-sub portal-count">${ordens.length} ${ordens.length === 1 ? 'ordem' : 'ordens'} de serviço ${ordens.length === 1 ? 'encontrada' : 'encontradas'}.</p>
       ${ordens.map(cardOS).join('')}`;
   } catch {
     box.innerHTML = stateMsg('error', 'Falha de conexão com o servidor.');

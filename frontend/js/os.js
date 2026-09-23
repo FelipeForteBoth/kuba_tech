@@ -123,7 +123,7 @@ async function fetchDados() {
     }
     applyFilter();
     document.getElementById('sub-count').textContent =
-      `${orders.length} ordem${orders.length !== 1 ? 'ns' : ''} de serviço`;
+      `${orders.length} ${orders.length === 1 ? 'ordem' : 'ordens'} de serviço`;
   } catch (e) {
     console.error(e);
     toast('Não foi possível carregar as ordens de serviço.', 'err');
