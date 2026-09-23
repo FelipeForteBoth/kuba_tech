@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portal do Cliente — Kuba Tech</title>
+  <meta name="description" content="Consulte o andamento das suas ordens de serviço informando apenas o seu CPF.">
+  <link rel="icon" type="image/png" href="../img/favicon.png">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body class="portal-body">
+
+<a class="skip-link" href="#conteudo">Ir para o conteúdo</a>
+
+<nav class="navbar">
+  <a href="../index.html" class="navbar-brand">
+    <div class="brand-icon"><img src="../img/logo-kuba-app.png" alt="Kuba Tech"></div>
+    Kuba Tech
+  </a>
+</nav>
+
+<main id="conteudo" class="portal-main">
+
+  <header class="page-header">
+    <div>
+      <h1 class="page-title">Portal do Cliente</h1>
+      <p class="page-sub">Informe o seu CPF para acompanhar todas as suas ordens de serviço.
+        O número da O.S. é opcional.</p>
+    </div>
+  </header>
+
+  <section class="tcard portal-form">
+    <div class="fg">
+      <label for="f-cpf">CPF *</label>
+      <input type="text" class="fc" id="f-cpf" data-mask="cpf" maxlength="14"
+             inputmode="numeric" autocomplete="off" placeholder="000.000.000-00">
+    </div>
+    <div class="fg">
+      <label for="f-numero">Número da O.S. (opcional)</label>
+      <input type="text" class="fc" id="f-numero" inputmode="numeric" placeholder="Deixe vazio para ver todas">
+    </div>
+    <button class="btn btn-primary" id="btn-consultar">
+      <i class="fas fa-search" aria-hidden="true"></i> Consultar
+    </button>
+  </section>
+
+  <div id="resultado" class="portal-result" role="status" aria-live="polite"></div>
+
+</main>
+
+<footer class="portal-footer">
+  <p>© 2026 Kuba Tech · <a href="login.html">Acesso da equipe</a></p>
+</footer>
+
+<script src="../js/config.js"></script>
+<script src="../js/shared.js"></script>
+<script src="../js/portal.js"></script>
+</body>
+</html>
